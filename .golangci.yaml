@@ -1,0 +1,23 @@
+
+#this is the config file for golangci-lint
+#golangci-lint will automatically detect this file
+#available configurations can be found here https://golangci-lint.run/usage/configuration/
+
+linters:
+  enable:
+    - dupl
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - golint
+    - goprintffuncname
+    - gosec
+    - maligned
+    - misspell
+    - nakedret
+    - prealloc
+    - stylecheck
+    - unconvert
+    - unparam
+    - whitespace

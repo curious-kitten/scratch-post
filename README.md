@@ -1,2 +1,2 @@
 # scratch-post
-Go testing librabry
+Test management platform
