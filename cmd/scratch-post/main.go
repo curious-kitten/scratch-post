@@ -24,13 +24,17 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/curious-kitten/scratch-post/internal/http/router"
 
 	"github.com/curious-kitten/scratch-post/internal/health"
-	"github.com/curious-kitten/scratch-post/internal/http/middleware"
 	"github.com/curious-kitten/scratch-post/internal/http/probes"
 	"github.com/curious-kitten/scratch-post/internal/info"
 	"github.com/curious-kitten/scratch-post/internal/logger"
+	"github.com/curious-kitten/scratch-post/internal/store"
+	"github.com/curious-kitten/scratch-post/pkg/endpoints"
+	"github.com/curious-kitten/scratch-post/pkg/metadata"
+	"github.com/curious-kitten/scratch-post/pkg/projects"
+	"github.com/curious-kitten/scratch-post/pkg/scenarios"
 )
 
 var (
@@ -46,8 +50,7 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	app := info.App{
@@ -64,19 +67,45 @@ func main() {
 	defer flush()
 
 	log.Info("Starting app...")
-	r := mux.NewRouter()
-	r.Use(middleware.Logging(log))
+	r := router.New(log)
 	versionedRouter := r.PathPrefix("/api/v1").Subrouter()
 
 	conditions := health.NewConditions(app, instance)
 
 	probes.RegisterHTTPProbes(versionedRouter.PathPrefix("/probes").Subrouter(), conditions)
 
+	meta := metadata.NewMetaManager()
+
+	client, err := store.Client(ctx, "Cluster0", "JemxZ0AGYxcBUVJX", log)
+	if err != nil {
+		panic(err)
+	}
+	//  Projects endpoint
+	projectsCollection, err := store.Collection("development", "projects", client)
+	if err != nil {
+		panic(err)
+	}
+	projectRouter := versionedRouter.PathPrefix("/projects").Subrouter()
+	endpoints.Creator(ctx, projects.Creator(meta, projectsCollection), projectRouter)
+	endpoints.Lister(ctx, projects.List(projectsCollection), projectRouter)
+
+	// Scenario endpoints
+	scenarioCollection, err := store.Collection("development", "scenarios", client)
+	if err != nil {
+		panic(err)
+	}
+	scenarioRouter := versionedRouter.PathPrefix("/scenarios").Subrouter()
+	endpoints.Creator(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
+	endpoints.Lister(ctx, scenarios.List(scenarioCollection), scenarioRouter)
+	endpoints.Getter(ctx, scenarios.Get(scenarioCollection), scenarioRouter)
+	endpoints.Deleter(ctx, scenarios.Delete(scenarioCollection), scenarioRouter)
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", *port),
 		Handler: r,
 	}
 
+	log.Infof("Starting server on port %s", *port)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
