@@ -29,12 +29,11 @@ const (
 
 // ValidationError represents an issue with value setting on a struct
 type ValidationError struct {
-	atrribute string
-	condition string
+	message string
 }
 
 func (v *ValidationError) Error() string {
-	return fmt.Sprintf("invalid attribute value: %s must be %s", v.atrribute, v.condition)
+	return v.message
 }
 
 // IsValidationError checkIfAnError is a validation error
@@ -48,10 +47,9 @@ func IsValidationError(err error) bool {
 }
 
 // NewValidationError creates a new ValidationError
-func NewValidationError(attribute, condition string) error {
+func NewValidationError(message string) error {
 	return &ValidationError{
-		atrribute: attribute,
-		condition: condition,
+		message: message,
 	}
 }
 

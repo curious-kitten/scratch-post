@@ -100,6 +100,43 @@ func (mr *MockGetterMockRecorder) GetAll(ctx, items interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockGetter)(nil).GetAll), ctx, items)
 }
 
+// MockDeleter is a mock of Deleter interface
+type MockDeleter struct {
+	ctrl     *gomock.Controller
+	recorder *MockDeleterMockRecorder
+}
+
+// MockDeleterMockRecorder is the mock recorder for MockDeleter
+type MockDeleterMockRecorder struct {
+	mock *MockDeleter
+}
+
+// NewMockDeleter creates a new mock instance
+func NewMockDeleter(ctrl *gomock.Controller) *MockDeleter {
+	mock := &MockDeleter{ctrl: ctrl}
+	mock.recorder = &MockDeleterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockDeleter) EXPECT() *MockDeleterMockRecorder {
+	return m.recorder
+}
+
+// Delete mocks base method
+func (m *MockDeleter) Delete(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete
+func (mr *MockDeleterMockRecorder) Delete(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockDeleter)(nil).Delete), ctx, id)
+}
+
 // MockIdentityGenerator is a mock of IdentityGenerator interface
 type MockIdentityGenerator struct {
 	ctrl     *gomock.Controller

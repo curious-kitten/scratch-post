@@ -19,7 +19,8 @@ build-app: lint
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
 
 run-tests:
-	go test -v ./...
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
 
 install-go-tools:
 	@./scripts/install_tools.sh

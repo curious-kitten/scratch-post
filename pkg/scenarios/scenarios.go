@@ -3,6 +3,7 @@ package scenarios
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/curious-kitten/scratch-post/internal/store"
@@ -45,10 +46,10 @@ func (s *Scenario) GetIdentity() *metadata.Identity {
 
 func (s *Scenario) Validate() error {
 	if s.Name == "" {
-		return metadata.NewValidationError("name", "a non empty string")
+		return metadata.NewValidationError("name is a mandatory parameter")
 	}
 	if s.ProjectID == "" {
-		return metadata.NewValidationError("projectId", "provided")
+		return metadata.NewValidationError("projectId is a mandatory parameter")
 	}
 	return nil
 }
@@ -78,16 +79,18 @@ type IdentityGenerator interface {
 func New(ig IdentityGenerator, collection Adder, getProject func(ctx context.Context, id string) (interface{}, error)) func(ctx context.Context, author string, scenarioData io.ReadCloser) (interface{}, error) {
 	return func(ctx context.Context, author string, scenarioData io.ReadCloser) (interface{}, error) {
 		scenario := &Scenario{}
-		err := json.NewDecoder(scenarioData).Decode(scenario)
+		decoder := json.NewDecoder(scenarioData)
+		decoder.DisallowUnknownFields()
+		err := decoder.Decode(scenario)
 		if err != nil {
-			return nil, err
+			return nil, metadata.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
 		}
 		if err = scenario.Validate(); err != nil {
 			return nil, err
 		}
 		if _, err = getProject(ctx, scenario.ProjectID); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("projectId", "the id of an existing project")
+				return nil, metadata.NewValidationError("a project with the provided ID does not exist")
 			}
 			return nil, err
 		}
@@ -112,6 +115,7 @@ func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 			return nil, err
 		}
 		items := make([]interface{}, len(scenarios))
+		fmt.Println(len(items))
 		for i, v := range scenarios {
 			items[i] = v
 		}
