@@ -13,6 +13,7 @@ type responseWriter struct {
 	http.ResponseWriter
 	status      int
 	wroteHeader bool
+	body        []byte
 }
 
 func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
@@ -31,6 +32,11 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
 	rw.wroteHeader = true
+}
+
+func (rw *responseWriter) Write(body []byte) (int, error) {
+	rw.body = body
+	return rw.ResponseWriter.Write(body)
 }
 
 type logger interface {
@@ -61,6 +67,7 @@ func Logging(logger logger) func(http.Handler) http.Handler {
 				"status", wrapped.Status(),
 				"method", r.Method,
 				"path", r.URL.EscapedPath(),
+				"body", string(wrapped.body),
 			)
 		}
 
