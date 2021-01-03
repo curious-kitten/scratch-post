@@ -44,6 +44,7 @@ push-images: app-image
 	docker push $(IMAGE):$(VERSION)
 
 fmt:
+	go mod tidy
 	goimports -w .
 	gofmt -s -w .
 
