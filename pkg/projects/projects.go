@@ -3,10 +3,13 @@ package projects
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
+
+//go:generate mockgen -source ./projects.go -destination mocks/projects.go
 
 // Project represents a umbrella for tests that refer to the same product
 type Project struct {
@@ -25,6 +28,13 @@ func (p *Project) GetIdentity() *metadata.Identity {
 	return p.Identity
 }
 
+func (p *Project) Validate() error {
+	if p.Name == "" {
+		return metadata.NewValidationError("name is a mandatory parameter")
+	}
+	return nil
+}
+
 type Adder interface {
 	AddOne(ctx context.Context, item interface{}) error
 }
@@ -35,15 +45,26 @@ type Getter interface {
 	GetAll(ctx context.Context, items interface{}) error
 }
 
-type identityGenerator interface {
+// Deleter deletes an entry from the collection
+type Deleter interface {
+	Delete(ctx context.Context, id string) error
+}
+
+type IdentityGenerator interface {
 	AddMeta(author string, objType string, identifiable metadata.Identifiable) error
 }
 
-// Creator creates a new project
-func Creator(ig identityGenerator, store Adder) func(ctx context.Context, author string, data io.ReadCloser) (interface{}, error) {
+// New creates a new project
+func New(ig IdentityGenerator, store Adder) func(ctx context.Context, author string, data io.ReadCloser) (interface{}, error) {
 	return func(ctx context.Context, author string, data io.ReadCloser) (interface{}, error) {
 		project := &Project{}
-		err := json.NewDecoder(data).Decode(project)
+		decoder := json.NewDecoder(data)
+		decoder.DisallowUnknownFields()
+		err := decoder.Decode(project)
+		if err != nil {
+			return nil, metadata.NewValidationError(fmt.Sprintf("invalid project body: %s", err.Error()))
+		}
+		err = project.Validate()
 		if err != nil {
 			return nil, err
 		}
@@ -83,5 +104,15 @@ func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, e
 			return nil, err
 		}
 		return project, nil
+	}
+}
+
+// Delete returns a function to delete a scenario based on the passed ID
+func Delete(collection Deleter) func(ctx context.Context, id string) error {
+	return func(ctx context.Context, id string) error {
+		if err := collection.Delete(ctx, id); err != nil {
+			return err
+		}
+		return nil
 	}
 }

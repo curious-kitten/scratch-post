@@ -86,8 +86,10 @@ func main() {
 		panic(err)
 	}
 	projectRouter := versionedRouter.PathPrefix("/projects").Subrouter()
-	endpoints.Creator(ctx, projects.Creator(meta, projectsCollection), projectRouter)
+	endpoints.Creator(ctx, projects.New(meta, projectsCollection), projectRouter)
 	endpoints.Lister(ctx, projects.List(projectsCollection), projectRouter)
+	endpoints.Getter(ctx, projects.Get(projectsCollection), projectRouter)
+	endpoints.Deleter(ctx, projects.Delete(projectsCollection), projectRouter)
 
 	// Scenario endpoints
 	scenarioCollection, err := store.Collection("development", "scenarios", client)
