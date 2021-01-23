@@ -7,8 +7,8 @@ DOCKER_REPO?="matache91mh"
 APP:=scratch-post
 IMAGE?=$(DOCKER_REPO)/$(APP)
 
-PORT?=9090
-CONF_FILE?=dbconfig.json
+DB_CONF_FILE?=dbconfig.json
+API_CONF_FILE?=apiconfig.json
 
 
 ifeq ($(VERSION),)
@@ -36,7 +36,7 @@ generate:
 	go generate -v ./...
 
 run: build-app
-	$(BIN_DIR)/$(APP) --port $(PORT) --dbconfig $(CONF_FILE)
+	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --dbconfig $(DB_CONF_FILE)
 
 
 app-image: build-app

@@ -24,7 +24,9 @@ import (
 	"os/signal"
 	"time"
 
+	apiConfig "github.com/curious-kitten/scratch-post/internal/config/api"
 	storeConfig "github.com/curious-kitten/scratch-post/internal/config/store"
+	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/health"
 	"github.com/curious-kitten/scratch-post/internal/http/probes"
 	"github.com/curious-kitten/scratch-post/internal/http/router"
@@ -39,13 +41,13 @@ import (
 )
 
 var (
-	port     *string
-	dbconfig *string
+	dbconfigFile  *string
+	apiconfigFile *string
 )
 
 func init() {
-	port = flag.String("port", "9090", "Port of server")
-	dbconfig = flag.String("dbconfig", "/etc/db.json", "Path to DB config settings")
+	dbconfigFile = flag.String("dbconfig", "/etc/db.json", "Path to DB config settings")
+	apiconfigFile = flag.String("apiconfig", "/etc/api.json", "Path to API config settings")
 	flag.Parse()
 }
 
@@ -69,34 +71,44 @@ func main() {
 	defer flush()
 
 	log.Info("Reading configurations...")
-	confContents, err := os.Open(*dbconfig)
+	// Reading DB config file
+	dbConfContents, err := os.Open(*dbconfigFile)
 	if err != nil {
+		panic(err)
+	}
+	storeCfg := &storeConfig.Config{}
+	if err := decoder.Decode(storeCfg, dbConfContents); err != nil {
+		panic(err)
+	}
+	// Reading API config file
+	apiConfContents, err := os.Open(*apiconfigFile)
+	if err != nil {
+		panic(err)
+	}
+	apiCfg := &apiConfig.Config{}
+	if err := decoder.Decode(apiCfg, apiConfContents); err != nil {
 		panic(err)
 	}
 
-	config, err := storeConfig.NewConfig(confContents)
-	if err != nil {
-		panic(err)
-	}
 	log.Info("Starting app...")
 	r := router.New(log)
-	versionedRouter := r.PathPrefix("/api/v1").Subrouter()
+	versionedRouter := r.PathPrefix(apiCfg.RootPrefix).Subrouter()
 
 	conditions := health.NewConditions(app, instance)
-	probes.RegisterHTTPProbes(versionedRouter.PathPrefix("/probes").Subrouter(), conditions)
+	probes.RegisterHTTPProbes(versionedRouter.PathPrefix(apiCfg.Endpoints.Probes).Subrouter(), conditions)
 
 	meta := metadata.NewMetaManager()
 
-	client, err := store.Client(ctx, config.Address)
+	client, err := store.Client(ctx, storeCfg.Address)
 	if err != nil {
 		panic(err)
 	}
 	//  Projects endpoint
-	projectsCollection, err := store.Collection(config.DataBase, config.Collections.Projects, client)
+	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client)
 	if err != nil {
 		panic(err)
 	}
-	projectRouter := versionedRouter.PathPrefix("/projects").Subrouter()
+	projectRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Projects).Subrouter()
 	endpoints.Creator(ctx, projects.New(meta, projectsCollection), projectRouter)
 	endpoints.Lister(ctx, projects.List(projectsCollection), projectRouter)
 	endpoints.Getter(ctx, projects.Get(projectsCollection), projectRouter)
@@ -104,11 +116,11 @@ func main() {
 	endpoints.Updater(ctx, projects.Update(projectsCollection), projectRouter)
 
 	// Scenario endpoints
-	scenarioCollection, err := store.Collection(config.DataBase, config.Collections.Scenarios, client)
+	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client)
 	if err != nil {
 		panic(err)
 	}
-	scenarioRouter := versionedRouter.PathPrefix("/scenarios").Subrouter()
+	scenarioRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Scenarios).Subrouter()
 	endpoints.Creator(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
 	endpoints.Lister(ctx, scenarios.List(scenarioCollection), scenarioRouter)
 	endpoints.Getter(ctx, scenarios.Get(scenarioCollection), scenarioRouter)
@@ -116,11 +128,11 @@ func main() {
 	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
 
 	// Scenario endpoints
-	testPlanCollection, err := store.Collection(config.DataBase, config.Collections.Scenarios, client)
+	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client)
 	if err != nil {
 		panic(err)
 	}
-	testPlanRouter := versionedRouter.PathPrefix("/testplans").Subrouter()
+	testPlanRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.TestPlans).Subrouter()
 	endpoints.Creator(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
 	endpoints.Lister(ctx, testplans.List(testPlanCollection), testPlanRouter)
 	endpoints.Getter(ctx, testplans.Get(testPlanCollection), testPlanRouter)
@@ -129,7 +141,7 @@ func main() {
 
 	// Start HTTP Server
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", *port),
+		Addr:    fmt.Sprintf(":%s", apiCfg.Port),
 		Handler: r,
 	}
 
@@ -138,7 +150,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-	log.Infof("Server started on port %s", *port)
+	log.Infof("Server started on port %s", apiCfg.Port)
 
 	<-c
 
