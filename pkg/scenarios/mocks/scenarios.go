@@ -6,9 +6,10 @@ package mock_scenarios
 
 import (
 	context "context"
+	reflect "reflect"
+
 	metadata "github.com/curious-kitten/scratch-post/pkg/metadata"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
 // MockAdder is a mock of Adder interface

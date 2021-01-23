@@ -293,7 +293,7 @@ func TestUpdate(t *testing.T) {
 	mockReaderUpdater.
 		EXPECT().
 		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
-		Do(func (ctx context.Context, id string, tp *testplans.TestPlan){
+		Do(func(ctx context.Context, id string, tp *testplans.TestPlan) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
@@ -332,7 +332,6 @@ func TestUpdate_InvalidProject(t *testing.T) {
 	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
-	
 }
 
 func TestUpdate_ProjectError(t *testing.T) {
@@ -345,7 +344,6 @@ func TestUpdate_ProjectError(t *testing.T) {
 	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 	g.Expect(metadata.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
-	
 }
 
 func TestUpdate_GetError(t *testing.T) {
@@ -372,7 +370,7 @@ func TestUpdate_UpdateError(t *testing.T) {
 	mockReaderUpdater.
 		EXPECT().
 		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
-		Do(func (ctx context.Context, id string, tp *testplans.TestPlan){
+		Do(func(ctx context.Context, id string, tp *testplans.TestPlan) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.

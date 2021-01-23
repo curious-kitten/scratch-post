@@ -1,9 +1,7 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 )
 
@@ -23,12 +21,14 @@ func (e *errList) Error() string {
 	return e.b.String()
 }
 
+// Config represents the Store coonection information
 type Config struct {
 	Address     string      `json:"address"`
 	DataBase    string      `json:"database"`
 	Collections Collections `json:"collections"`
 }
 
+// Collections represent the various collections in the store
 type Collections struct {
 	Projects  string `json:"projects"`
 	Scenarios string `json:"scenarios"`
@@ -69,17 +69,4 @@ func (c Collections) Validate() error {
 		return errs
 	}
 	return nil
-}
-
-// NewConfig returns a the necessary information to connect to the Data Base
-func NewConfig(data io.Reader) (Config, error) {
-	config := Config{}
-	decoder := json.NewDecoder(data)
-	if err := decoder.Decode(&config); err != nil {
-		return Config{}, err
-	}
-	if err := config.Validate(); err != nil {
-		return Config{}, err
-	}
-	return config, nil
 }

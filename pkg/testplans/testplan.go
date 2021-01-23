@@ -33,7 +33,7 @@ func (s *TestPlan) GetIdentity() *metadata.Identity {
 	return s.Identity
 }
 
-// Validate checks the integrity of the TestPlan 
+// Validate checks the integrity of the TestPlan
 func (s *TestPlan) Validate() error {
 	if s.Name == "" {
 		return metadata.NewValidationError("name is a mandatory parameter")

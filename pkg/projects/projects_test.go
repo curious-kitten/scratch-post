@@ -248,7 +248,7 @@ func TestUpdate(t *testing.T) {
 	mockReaderUpdater.
 		EXPECT().
 		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
-		Do(func (ctx context.Context, id string, tp *projects.Project){
+		Do(func(ctx context.Context, id string, tp *projects.Project) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
@@ -258,8 +258,8 @@ func TestUpdate(t *testing.T) {
 	project, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
 	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
 	expectedProject := &projects.Project{
-		Identity:  &identity,
-		Name:      testProject.Name,
+		Identity: &identity,
+		Name:     testProject.Name,
 	}
 	g.Expect(project).To(Equal(expectedProject), "projects did not match")
 }
@@ -300,7 +300,7 @@ func TestUpdate_UpdateError(t *testing.T) {
 	mockReaderUpdater.
 		EXPECT().
 		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
-		Do(func (ctx context.Context, id string, tp *projects.Project){
+		Do(func(ctx context.Context, id string, tp *projects.Project) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
