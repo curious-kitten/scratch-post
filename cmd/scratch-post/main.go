@@ -24,10 +24,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/curious-kitten/scratch-post/internal/http/router"
-
+	storeConfig "github.com/curious-kitten/scratch-post/internal/config/store"
 	"github.com/curious-kitten/scratch-post/internal/health"
 	"github.com/curious-kitten/scratch-post/internal/http/probes"
+	"github.com/curious-kitten/scratch-post/internal/http/router"
 	"github.com/curious-kitten/scratch-post/internal/info"
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
@@ -38,18 +38,19 @@ import (
 )
 
 var (
-	port *string
+	port     *string
+	dbconfig *string
 )
 
 func init() {
 	port = flag.String("port", "9090", "Port of server")
+	dbconfig = flag.String("dbconfig", "/etc/db.json", "Path to DB config settings")
 	flag.Parse()
 }
 
 func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -66,22 +67,31 @@ func main() {
 	}
 	defer flush()
 
+	log.Info("Reading configurations...")
+	confContents, err := os.Open(*dbconfig)
+	if err != nil {
+		panic(err)
+	}
+
+	config, err := storeConfig.NewConfig(confContents)
+	if err != nil {
+		panic(err)
+	}
 	log.Info("Starting app...")
 	r := router.New(log)
 	versionedRouter := r.PathPrefix("/api/v1").Subrouter()
 
 	conditions := health.NewConditions(app, instance)
-
 	probes.RegisterHTTPProbes(versionedRouter.PathPrefix("/probes").Subrouter(), conditions)
 
 	meta := metadata.NewMetaManager()
 
-	client, err := store.Client(ctx, "Cluster0", "JemxZ0AGYxcBUVJX", log)
+	client, err := store.Client(ctx, config.Address)
 	if err != nil {
 		panic(err)
 	}
 	//  Projects endpoint
-	projectsCollection, err := store.Collection("development", "projects", client)
+	projectsCollection, err := store.Collection(config.DataBase, config.Collections.Projects, client)
 	if err != nil {
 		panic(err)
 	}
@@ -90,9 +100,10 @@ func main() {
 	endpoints.Lister(ctx, projects.List(projectsCollection), projectRouter)
 	endpoints.Getter(ctx, projects.Get(projectsCollection), projectRouter)
 	endpoints.Deleter(ctx, projects.Delete(projectsCollection), projectRouter)
+	endpoints.Updater(ctx, projects.Update(projectsCollection), projectRouter)
 
 	// Scenario endpoints
-	scenarioCollection, err := store.Collection("development", "scenarios", client)
+	scenarioCollection, err := store.Collection(config.DataBase, config.Collections.Scenarios, client)
 	if err != nil {
 		panic(err)
 	}
@@ -101,18 +112,20 @@ func main() {
 	endpoints.Lister(ctx, scenarios.List(scenarioCollection), scenarioRouter)
 	endpoints.Getter(ctx, scenarios.Get(scenarioCollection), scenarioRouter)
 	endpoints.Deleter(ctx, scenarios.Delete(scenarioCollection), scenarioRouter)
+	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
 
+	// Start HTTP Server
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", *port),
 		Handler: r,
 	}
 
-	log.Infof("Starting server on port %s", *port)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()
+	log.Infof("Server started on port %s", *port)
 
 	<-c
 
@@ -121,6 +134,6 @@ func main() {
 	defer cancel()
 	err = srv.Shutdown(ctx)
 	if err != nil {
-		log.Error(err)
+		panic(err)
 	}
 }

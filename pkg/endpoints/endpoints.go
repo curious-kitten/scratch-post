@@ -14,7 +14,7 @@ import (
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
-type create func(ctx context.Context, user string, body io.ReadCloser) (interface{}, error)
+type create func(ctx context.Context, user string, body io.Reader) (interface{}, error)
 
 // Creator reponds to a HTTP Post request to a collection
 func Creator(ctx context.Context, createFunc create, r *mux.Router) {
@@ -24,7 +24,6 @@ func Creator(ctx context.Context, createFunc create, r *mux.Router) {
 			helpers.FormatError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
 		toctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
 
@@ -105,9 +104,35 @@ func Deleter(ctx context.Context, deleterFunc deleteItem, r *mux.Router) {
 			handleError(err, w)
 			return
 		}
-		helpers.FormatResponse(w, struct{ item string }{item: id}, http.StatusOK)
+		helpers.FormatResponse(w, struct {
+			Item string `json:"item"`
+		}{Item: id}, http.StatusOK)
 	}
 	r.HandleFunc("/{id}", d).Methods(http.MethodDelete)
+}
+
+type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
+
+// Updater provides an API endpoint used to update an intem
+func Updater(ctx context.Context, updateFunc updateItem, r *mux.Router) {
+	u := func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		id := params["id"]
+		user, err := authorization.GetUserIDFromRequest(r)
+		if err != nil {
+			helpers.FormatError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		toctx, cancel := context.WithTimeout(ctx, time.Second*10)
+		defer cancel()
+		item, err := updateFunc(toctx, user, id, r.Body)
+		if err != nil {
+			handleError(err, w)
+			return
+		}
+		helpers.FormatResponse(w, item, http.StatusOK)
+	}
+	r.HandleFunc("/{id}", u).Methods(http.MethodPut)
 }
 
 func handleError(err error, w http.ResponseWriter) {

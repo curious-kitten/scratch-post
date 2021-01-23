@@ -2,10 +2,13 @@ SHELL:=/bin/bash
 TOP_DIR:=$(notdir $(CURDIR))
 BUILD_DIR:=build
 BIN_DIR:=$(BUILD_DIR)/_bin
-PORT?=9090
+
 DOCKER_REPO?="matache91mh"
 APP:=scratch-post
 IMAGE?=$(DOCKER_REPO)/$(APP)
+
+PORT?=9090
+CONF_FILE?=dbconfig.json
 
 
 ifeq ($(VERSION),)
@@ -33,7 +36,7 @@ generate:
 	go generate -v ./...
 
 run-server: build-app
-	$(BIN_DIR)/$(APP) -port $(PORT)
+	$(BIN_DIR)/$(APP) --port $(PORT) --dbconfig $(CONF_FILE)
 
 
 app-image: build-app

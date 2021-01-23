@@ -16,3 +16,5 @@
 .vscode/
 
 build/_bin/
+
+dbconfig.json

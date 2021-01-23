@@ -2,20 +2,15 @@ package store
 
 import (
 	"context"
-	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
-	"github.com/curious-kitten/scratch-post/internal/logger"
 )
 
 // Client creates a DB client
-func Client(ctx context.Context, dbname string, passwd string, log logger.Logger) (*mongo.Client, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(
-		fmt.Sprintf("mongodb+srv://dev-post:%s@cluster0.m4kb1.mongodb.net/%s?retryWrites=true&w=majority", passwd, dbname),
-	))
+func Client(ctx context.Context, address string) (*mongo.Client, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(address))
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +77,18 @@ func (d *Data) Get(ctx context.Context, id string, item interface{}) error {
 	return nil
 }
 
+// Delete an item based on the item ID
 func (d *Data) Delete(ctx context.Context, id string) error {
-	_, err := d.coll.DeleteOne(ctx, bson.M{"identity.id": id})
+	res, err := d.coll.DeleteOne(ctx, bson.M{"identity.id": id})
+	if res.DeletedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return err
+}
+
+// Update replaces the item with the given item ID with the provided one
+func (d *Data) Update(ctx context.Context, id string, item interface{}) error {
+	_, err := d.coll.ReplaceOne(ctx, bson.M{"identity.id": id}, item)
 	return err
 }
 

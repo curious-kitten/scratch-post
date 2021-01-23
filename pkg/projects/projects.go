@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
@@ -50,13 +51,22 @@ type Deleter interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type Updater interface {
+	Update(ctx context.Context, id string, item interface{}) error
+}
+
+type ReaderUpdated interface {
+	Getter
+	Updater
+}
+
 type IdentityGenerator interface {
 	AddMeta(author string, objType string, identifiable metadata.Identifiable) error
 }
 
 // New creates a new project
-func New(ig IdentityGenerator, store Adder) func(ctx context.Context, author string, data io.ReadCloser) (interface{}, error) {
-	return func(ctx context.Context, author string, data io.ReadCloser) (interface{}, error) {
+func New(ig IdentityGenerator, store Adder) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
+	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 		project := &Project{}
 		decoder := json.NewDecoder(data)
 		decoder.DisallowUnknownFields()
@@ -114,5 +124,37 @@ func Delete(collection Deleter) func(ctx context.Context, id string) error {
 			return err
 		}
 		return nil
+	}
+}
+
+// Update is used to replace a scenario with the provided scenario
+func Update(collection ReaderUpdated) func(ctx context.Context, user string, id string, body io.Reader) (interface{}, error) {
+	return func(ctx context.Context, user string, id string, body io.Reader) (interface{}, error) {
+		project := &Project{}
+		decoder := json.NewDecoder(body)
+		decoder.DisallowUnknownFields()
+		err := decoder.Decode(project)
+		if err != nil {
+			return nil, metadata.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
+		}
+		if err = project.Validate(); err != nil {
+			return nil, err
+		}
+		data, err := Get(collection)(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		var s *Project
+		var ok bool
+		if s, ok = data.(*Project); !ok {
+			return nil, fmt.Errorf("invalid data structure in DB")
+		}
+		project.Identity = s.Identity
+		project.Identity.UpdateTime = time.Now()
+		project.Identity.UpdatedBy = user
+		if err := collection.Update(ctx, id, project); err != nil {
+			return nil, err
+		}
+		return project, nil
 	}
 }

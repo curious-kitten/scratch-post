@@ -101,7 +101,9 @@ func (p *MetaManager) AddMeta(author string, objType string, identifiable Identi
 		Type:         objType,
 		Version:      1,
 		CreatedBy:    author,
+		UpdatedBy:    author,
 		CreationTime: time.Now(),
+		UpdateTime:   time.Now(),
 	})
 	return nil
 }
