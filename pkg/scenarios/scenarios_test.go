@@ -283,3 +283,103 @@ func TestDelete_Error(t *testing.T) {
 	err := deleter(ctx, identity.ID)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
+
+func TestUpdate(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater.
+		EXPECT().
+		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Do(func (ctx context.Context, id string, tp *scenarios.Scenario){
+			tp.Identity = &identity
+		})
+	mockReaderUpdater.
+		EXPECT().
+		Update(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{}))
+	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
+	scenario, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
+	expectedScenario := &scenarios.Scenario{
+		Identity:  &identity,
+		Name:      testScenario.Name,
+		ProjectID: testScenario.ProjectID,
+	}
+	g.Expect(scenario).To(Equal(expectedScenario), "scenarios did not match")
+}
+
+func TestUpdate_ValidationError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(scenarios.Scenario{}))
+	g.Expect(err).Should(HaveOccurred(), "error did not occur")
+	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+}
+
+func TestUpdate_InvalidProject(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	updater := scenarios.Update(mockReaderUpdater, noProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
+	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
+	
+}
+
+func TestUpdate_ProjectError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	updater := scenarios.Update(mockReaderUpdater, errorGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
+	g.Expect(metadata.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
+	
+}
+
+func TestUpdate_GetError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater.
+		EXPECT().
+		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Return(fmt.Errorf("error during get"))
+	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
+}
+
+func TestUpdate_UpdateError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater.
+		EXPECT().
+		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Do(func (ctx context.Context, id string, tp *scenarios.Scenario){
+			tp.Identity = &identity
+		})
+	mockReaderUpdater.
+		EXPECT().
+		Update(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Return(fmt.Errorf("update error"))
+	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
+}

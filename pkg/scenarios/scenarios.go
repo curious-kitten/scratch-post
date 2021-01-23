@@ -2,13 +2,12 @@ package scenarios
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"time"
 
+	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/store"
-
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
@@ -47,6 +46,7 @@ func (s *Scenario) GetIdentity() *metadata.Identity {
 	return s.Identity
 }
 
+// Validate is used to check the integrity of the scenario object
 func (s *Scenario) Validate() error {
 	if s.Name == "" {
 		return metadata.NewValidationError("name is a mandatory parameter")
@@ -73,11 +73,13 @@ type Deleter interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// Updater is used to replace information into the Data Base
 type Updater interface {
 	Update(ctx context.Context, id string, item interface{}) error
 }
 
-type ReaderUpdated interface {
+// ReaderUpdater is used to read and update objects in the Data Base
+type ReaderUpdater interface {
 	Getter
 	Updater
 }
@@ -88,32 +90,26 @@ type IdentityGenerator interface {
 }
 
 // New returns a function used to create a scenario
-func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, scenarioData io.Reader) (interface{}, error) {
-	return func(ctx context.Context, author string, scenarioData io.Reader) (interface{}, error) {
+func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
+	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 		scenario := &Scenario{}
-		decoder := json.NewDecoder(scenarioData)
-		decoder.DisallowUnknownFields()
-		err := decoder.Decode(scenario)
-		if err != nil {
-			return nil, metadata.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
-		}
-		if err = scenario.Validate(); err != nil {
+		if err := decoder.Decode(scenario, data); err != nil {
 			return nil, err
 		}
-		if _, err = getProject(ctx, scenario.ProjectID); err != nil {
+		if _, err := getProject(ctx, scenario.ProjectID); err != nil {
 			if store.IsNotFoundError(err) {
 				return nil, metadata.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		err = ig.AddMeta(author, "scenario", scenario)
-		if err != nil {
+		if err := ig.AddMeta(author, "scenario", scenario); err != nil {
 			return nil, err
 		}
-		err = collection.AddOne(ctx, scenario)
-		if err != nil {
+
+		if err := collection.AddOne(ctx, scenario); err != nil {
 			return nil, err
 		}
+
 		return scenario, nil
 	}
 }
@@ -157,31 +153,25 @@ func Delete(collection Deleter) func(ctx context.Context, id string) error {
 }
 
 // Update is used to replace a scenario with the provided scenario
-func Update(collection ReaderUpdated, getProject projectRetriever) func(ctx context.Context, user string, id string, body io.Reader) (interface{}, error) {
-	return func(ctx context.Context, user string, id string, body io.Reader) (interface{}, error) {
+func Update(collection ReaderUpdater, getProject projectRetriever) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
+	return func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
 		scenario := &Scenario{}
-		decoder := json.NewDecoder(body)
-		decoder.DisallowUnknownFields()
-		err := decoder.Decode(scenario)
-		if err != nil {
-			return nil, metadata.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
-		}
-		if err = scenario.Validate(); err != nil {
+		if err := decoder.Decode(scenario, data); err != nil {
 			return nil, err
 		}
-		if _, err = getProject(ctx, scenario.ProjectID); err != nil {
+		if _, err := getProject(ctx, scenario.ProjectID); err != nil {
 			if store.IsNotFoundError(err) {
 				return nil, metadata.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		data, err := Get(collection)(ctx, id)
+		foundScenario, err := Get(collection)(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 		var s *Scenario
 		var ok bool
-		if s, ok = data.(*Scenario); !ok {
+		if s, ok = foundScenario.(*Scenario); !ok {
 			return nil, fmt.Errorf("invalid data structure in DB")
 		}
 		scenario.Identity = s.Identity
