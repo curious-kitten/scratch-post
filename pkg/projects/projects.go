@@ -2,11 +2,11 @@ package projects
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"time"
 
+	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
@@ -29,6 +29,7 @@ func (p *Project) GetIdentity() *metadata.Identity {
 	return p.Identity
 }
 
+// Validate check whether the constraints on Project have been met
 func (p *Project) Validate() error {
 	if p.Name == "" {
 		return metadata.NewValidationError("name is a mandatory parameter")
@@ -55,7 +56,7 @@ type Updater interface {
 	Update(ctx context.Context, id string, item interface{}) error
 }
 
-type ReaderUpdated interface {
+type ReaderUpdater interface {
 	Getter
 	Updater
 }
@@ -68,22 +69,13 @@ type IdentityGenerator interface {
 func New(ig IdentityGenerator, store Adder) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 		project := &Project{}
-		decoder := json.NewDecoder(data)
-		decoder.DisallowUnknownFields()
-		err := decoder.Decode(project)
-		if err != nil {
-			return nil, metadata.NewValidationError(fmt.Sprintf("invalid project body: %s", err.Error()))
-		}
-		err = project.Validate()
-		if err != nil {
+		if err := decoder.Decode(project, data); err != nil {
 			return nil, err
 		}
-		err = ig.AddMeta(author, "project", project)
-		if err != nil {
+		if err := ig.AddMeta(author, "project", project); err != nil {
 			return nil, err
 		}
-		err = store.AddOne(ctx, project)
-		if err != nil {
+		if err := store.AddOne(ctx, project); err != nil {
 			return nil, err
 		}
 		return project, nil
@@ -128,25 +120,19 @@ func Delete(collection Deleter) func(ctx context.Context, id string) error {
 }
 
 // Update is used to replace a scenario with the provided scenario
-func Update(collection ReaderUpdated) func(ctx context.Context, user string, id string, body io.Reader) (interface{}, error) {
-	return func(ctx context.Context, user string, id string, body io.Reader) (interface{}, error) {
+func Update(collection ReaderUpdater) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
+	return func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
 		project := &Project{}
-		decoder := json.NewDecoder(body)
-		decoder.DisallowUnknownFields()
-		err := decoder.Decode(project)
-		if err != nil {
-			return nil, metadata.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
-		}
-		if err = project.Validate(); err != nil {
+		if err := decoder.Decode(project, data); err != nil {
 			return nil, err
 		}
-		data, err := Get(collection)(ctx, id)
+		foundProject, err := Get(collection)(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 		var s *Project
 		var ok bool
-		if s, ok = data.(*Project); !ok {
+		if s, ok = foundProject.(*Project); !ok {
 			return nil, fmt.Errorf("invalid data structure in DB")
 		}
 		project.Identity = s.Identity

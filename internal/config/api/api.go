@@ -1,4 +1,4 @@
-package store
+package api
 
 import (
 	"fmt"
@@ -21,15 +21,16 @@ func (e *errList) Error() string {
 	return e.b.String()
 }
 
-// Config represents the Store coonection information
+// Config represents the API information
 type Config struct {
-	Address     string      `json:"address"`
-	DataBase    string      `json:"database"`
-	Collections Collections `json:"collections"`
+	RootPrefix string    `json:"rootPrefix"`
+	Port       string    `json:"port"`
+	Endpoints  Endpoints `json:"endpoints"`
 }
 
-// Collections represent the various collections in the store
-type Collections struct {
+// Endpoints represent the endpoints that are exposed by the server
+type Endpoints struct {
+	Probes    string `json:"probes"`
 	Projects  string `json:"projects"`
 	Scenarios string `json:"scenarios"`
 	TestPlans string `json:"testplans"`
@@ -38,13 +39,13 @@ type Collections struct {
 // Validate that the config object is correct
 func (c Config) Validate() error {
 	errs := &errList{}
-	if c.Address == "" {
+	if c.RootPrefix == "" {
 		errs.add("address field is mandatory")
 	}
-	if c.DataBase == "" {
+	if c.Port == "" {
 		errs.add("dataBase field is mandatory")
 	}
-	if err := c.Collections.Validate(); err != nil {
+	if err := c.Endpoints.Validate(); err != nil {
 		errs.add(err.Error())
 	}
 	if !errs.isEmpty() {
@@ -54,7 +55,7 @@ func (c Config) Validate() error {
 }
 
 // Validate if all collections have been passed
-func (c Collections) Validate() error {
+func (c Endpoints) Validate() error {
 	errs := &errList{}
 	if c.Projects == "" {
 		errs.add("projects field is mandatory")

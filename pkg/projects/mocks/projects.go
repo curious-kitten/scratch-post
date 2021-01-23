@@ -137,6 +137,108 @@ func (mr *MockDeleterMockRecorder) Delete(ctx, id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockDeleter)(nil).Delete), ctx, id)
 }
 
+// MockUpdater is a mock of Updater interface
+type MockUpdater struct {
+	ctrl     *gomock.Controller
+	recorder *MockUpdaterMockRecorder
+}
+
+// MockUpdaterMockRecorder is the mock recorder for MockUpdater
+type MockUpdaterMockRecorder struct {
+	mock *MockUpdater
+}
+
+// NewMockUpdater creates a new mock instance
+func NewMockUpdater(ctrl *gomock.Controller) *MockUpdater {
+	mock := &MockUpdater{ctrl: ctrl}
+	mock.recorder = &MockUpdaterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockUpdater) EXPECT() *MockUpdaterMockRecorder {
+	return m.recorder
+}
+
+// Update mocks base method
+func (m *MockUpdater) Update(ctx context.Context, id string, item interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, id, item)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update
+func (mr *MockUpdaterMockRecorder) Update(ctx, id, item interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockUpdater)(nil).Update), ctx, id, item)
+}
+
+// MockReaderUpdater is a mock of ReaderUpdater interface
+type MockReaderUpdater struct {
+	ctrl     *gomock.Controller
+	recorder *MockReaderUpdaterMockRecorder
+}
+
+// MockReaderUpdaterMockRecorder is the mock recorder for MockReaderUpdater
+type MockReaderUpdaterMockRecorder struct {
+	mock *MockReaderUpdater
+}
+
+// NewMockReaderUpdater creates a new mock instance
+func NewMockReaderUpdater(ctrl *gomock.Controller) *MockReaderUpdater {
+	mock := &MockReaderUpdater{ctrl: ctrl}
+	mock.recorder = &MockReaderUpdaterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockReaderUpdater) EXPECT() *MockReaderUpdaterMockRecorder {
+	return m.recorder
+}
+
+// Get mocks base method
+func (m *MockReaderUpdater) Get(ctx context.Context, id string, item interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", ctx, id, item)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Get indicates an expected call of Get
+func (mr *MockReaderUpdaterMockRecorder) Get(ctx, id, item interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockReaderUpdater)(nil).Get), ctx, id, item)
+}
+
+// GetAll mocks base method
+func (m *MockReaderUpdater) GetAll(ctx context.Context, items interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAll", ctx, items)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GetAll indicates an expected call of GetAll
+func (mr *MockReaderUpdaterMockRecorder) GetAll(ctx, items interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockReaderUpdater)(nil).GetAll), ctx, items)
+}
+
+// Update mocks base method
+func (m *MockReaderUpdater) Update(ctx context.Context, id string, item interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, id, item)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update
+func (mr *MockReaderUpdaterMockRecorder) Update(ctx, id, item interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockReaderUpdater)(nil).Update), ctx, id, item)
+}
+
 // MockIdentityGenerator is a mock of IdentityGenerator interface
 type MockIdentityGenerator struct {
 	ctrl     *gomock.Controller

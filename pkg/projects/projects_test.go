@@ -238,3 +238,76 @@ func TestDelete_Error(t *testing.T) {
 	err := deleter(ctx, identity.ID)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
+
+func TestUpdate(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater.
+		EXPECT().
+		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Do(func(ctx context.Context, id string, tp *projects.Project) {
+			tp.Identity = &identity
+		})
+	mockReaderUpdater.
+		EXPECT().
+		Update(ctx, identity.ID, matchers.OfType(&projects.Project{}))
+	updater := projects.Update(mockReaderUpdater)
+	project, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
+	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
+	expectedProject := &projects.Project{
+		Identity: &identity,
+		Name:     testProject.Name,
+	}
+	g.Expect(project).To(Equal(expectedProject), "projects did not match")
+}
+
+func TestUpdate_ValidationError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
+	updater := projects.Update(mockReaderUpdater)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(projects.Project{}))
+	g.Expect(err).Should(HaveOccurred(), "error did not occur")
+	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+}
+
+func TestUpdate_GetError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater.
+		EXPECT().
+		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Return(fmt.Errorf("error during get"))
+	updater := projects.Update(mockReaderUpdater)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
+	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
+}
+
+func TestUpdate_UpdateError(t *testing.T) {
+	g := NewWithT(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater.
+		EXPECT().
+		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Do(func(ctx context.Context, id string, tp *projects.Project) {
+			tp.Identity = &identity
+		})
+	mockReaderUpdater.
+		EXPECT().
+		Update(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Return(fmt.Errorf("update error"))
+	updater := projects.Update(mockReaderUpdater)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
+	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
+}

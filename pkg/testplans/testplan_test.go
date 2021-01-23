@@ -1,4 +1,4 @@
-package scenarios_test
+package testplans_test
 
 import (
 	"context"
@@ -13,14 +13,14 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/test/matchers"
 	"github.com/curious-kitten/scratch-post/internal/test/transformers"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
-	"github.com/curious-kitten/scratch-post/pkg/scenarios"
-	mockScenarios "github.com/curious-kitten/scratch-post/pkg/scenarios/mocks"
+	"github.com/curious-kitten/scratch-post/pkg/testplans"
+	mocktestplans "github.com/curious-kitten/scratch-post/pkg/testplans/mocks"
 )
 
 var (
 	identity = metadata.Identity{
 		ID:           "aabbccddee",
-		Type:         "scenario",
+		Type:         "testplan",
 		Version:      1,
 		CreatedBy:    "author",
 		UpdatedBy:    "author",
@@ -28,8 +28,8 @@ var (
 		UpdateTime:   time.Now(),
 	}
 
-	testScenario = &scenarios.Scenario{
-		Name:      "test scenario",
+	testTestPlan = &testplans.TestPlan{
+		Name:      "test testplan",
 		ProjectID: "zzxxxccvv",
 	}
 )
@@ -46,23 +46,23 @@ func noProject(ctx context.Context, id string) (interface{}, error) {
 	return nil, mongo.ErrNoDocuments
 }
 
-func TestScenario_AddIdentity(t *testing.T) {
+func TestTestPlan_AddIdentity(t *testing.T) {
 	g := NewWithT(t)
-	s := scenarios.Scenario{}
+	s := testplans.TestPlan{}
 	s.AddIdentity(&identity)
 	g.Expect(s.GetIdentity()).To(Equal(&identity))
 }
 
-func TestScenario_Validate(t *testing.T) {
+func TestTestPlan_Validate(t *testing.T) {
 	g := NewWithT(t)
-	s := &scenarios.Scenario{}
+	s := &testplans.TestPlan{}
 	err := s.Validate()
-	g.Expect(err).Should(HaveOccurred(), "No error with empty scenario")
-	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "empty scenario error is not a validation error")
+	g.Expect(err).Should(HaveOccurred(), "No error with empty testplan")
+	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "empty testplan error is not a validation error")
 	s.Name = "Test Name"
 	err = s.Validate()
-	g.Expect(err).Should(HaveOccurred(), "No error with scenario that only has a name")
-	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "scenario with only name error is not a validation error")
+	g.Expect(err).Should(HaveOccurred(), "No error with testplan that only has a name")
+	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "testplan with only name error is not a validation error")
 	s.ProjectID = "aabbccdd"
 	err = s.Validate()
 	g.Expect(err).ShouldNot(HaveOccurred(), "error occurred when minimun requirements have been met")
@@ -73,29 +73,29 @@ func TestNew_Create(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
 	mockGenerator.
 		EXPECT().
-		AddMeta("tester", "scenario", matchers.OfType(&scenarios.Scenario{})).
+		AddMeta("tester", "testplan", matchers.OfType(&testplans.TestPlan{})).
 		Return(nil).
 		Do(func(author string, objType string, identifiable metadata.Identifiable) {
 			identifiable.AddIdentity(&identity)
 		})
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
 	mockAdder.
 		EXPECT().
-		AddOne(ctx, matchers.OfType(&scenarios.Scenario{})).
+		AddOne(ctx, matchers.OfType(&testplans.TestPlan{})).
 		Return(nil)
 
-	creator := scenarios.New(mockGenerator, mockAdder, goodGetProject)
-	scenario, err := creator(ctx, "tester", transformers.ToReadCloser(testScenario))
+	creator := testplans.New(mockGenerator, mockAdder, goodGetProject)
+	testplan, err := creator(ctx, "tester", transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
-	expectedScenario := &scenarios.Scenario{
+	expectedTestPlan := &testplans.TestPlan{
 		Identity:  &identity,
-		Name:      testScenario.Name,
-		ProjectID: testScenario.ProjectID,
+		Name:      testTestPlan.Name,
+		ProjectID: testTestPlan.ProjectID,
 	}
-	g.Expect(scenario).To(Equal(expectedScenario), "scenarios did not match")
+	g.Expect(testplan).To(Equal(expectedTestPlan), "testplans did not match")
 }
 
 func TestNew_ProjectNotFound(t *testing.T) {
@@ -103,10 +103,10 @@ func TestNew_ProjectNotFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
-	creator := scenarios.New(mockGenerator, mockAdder, noProject)
-	_, err := creator(ctx, "tester", transformers.ToReadCloser(testScenario))
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
+	creator := testplans.New(mockGenerator, mockAdder, noProject)
+	_, err := creator(ctx, "tester", transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
 }
@@ -116,10 +116,10 @@ func TestNew_ProjectError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
-	creator := scenarios.New(mockGenerator, mockAdder, errorGetProject)
-	_, err := creator(ctx, "tester", transformers.ToReadCloser(testScenario))
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
+	creator := testplans.New(mockGenerator, mockAdder, errorGetProject)
+	_, err := creator(ctx, "tester", transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
 	g.Expect(metadata.IsValidationError(err)).To(BeFalse(), "error type was missing")
 }
@@ -129,9 +129,9 @@ func TestNew_MarshallError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
-	creator := scenarios.New(mockGenerator, mockAdder, errorGetProject)
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
+	creator := testplans.New(mockGenerator, mockAdder, errorGetProject)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(struct{ SomeField string }{SomeField: "test"}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
@@ -142,10 +142,10 @@ func TestNew_ValidationError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
-	creator := scenarios.New(mockGenerator, mockAdder, errorGetProject)
-	_, err := creator(ctx, "tester", transformers.ToReadCloser(&scenarios.Scenario{}))
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
+	creator := testplans.New(mockGenerator, mockAdder, errorGetProject)
+	_, err := creator(ctx, "tester", transformers.ToReadCloser(&testplans.TestPlan{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
@@ -155,14 +155,14 @@ func TestNew_AddMetaError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
 	mockGenerator.
 		EXPECT().
-		AddMeta("tester", "scenario", matchers.OfType(&scenarios.Scenario{})).
+		AddMeta("tester", "testplan", matchers.OfType(&testplans.TestPlan{})).
 		Return(fmt.Errorf("identity error"))
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
-	creator := scenarios.New(mockGenerator, mockAdder, goodGetProject)
-	_, err := creator(ctx, "tester", transformers.ToReadCloser(testScenario))
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
+	creator := testplans.New(mockGenerator, mockAdder, goodGetProject)
+	_, err := creator(ctx, "tester", transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
 
@@ -171,23 +171,23 @@ func TestNew_AddToCollectionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockScenarios.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mocktestplans.NewMockIdentityGenerator(ctrl)
 	mockGenerator.
 		EXPECT().
-		AddMeta("tester", "scenario", matchers.OfType(&scenarios.Scenario{})).
+		AddMeta("tester", "testplan", matchers.OfType(&testplans.TestPlan{})).
 		Return(nil).
 		Do(func(author string, objType string, identifiable metadata.Identifiable) error {
 			identifiable.AddIdentity(&identity)
 			return nil
 		})
-	mockAdder := mockScenarios.NewMockAdder(ctrl)
+	mockAdder := mocktestplans.NewMockAdder(ctrl)
 	mockAdder.
 		EXPECT().
-		AddOne(ctx, matchers.OfType(&scenarios.Scenario{})).
+		AddOne(ctx, matchers.OfType(&testplans.TestPlan{})).
 		Return(fmt.Errorf("expected error"))
 
-	creator := scenarios.New(mockGenerator, mockAdder, goodGetProject)
-	_, err := creator(ctx, "tester", transformers.ToReadCloser(testScenario))
+	creator := testplans.New(mockGenerator, mockAdder, goodGetProject)
+	_, err := creator(ctx, "tester", transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
 
@@ -196,13 +196,13 @@ func TestList(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGetter := mockScenarios.NewMockGetter(ctrl)
+	mockGetter := mocktestplans.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		GetAll(ctx, matchers.OfType(&[]scenarios.Scenario{})).
+		GetAll(ctx, matchers.OfType(&[]testplans.TestPlan{})).
 		Return(nil)
 
-	lister := scenarios.List(mockGetter)
+	lister := testplans.List(mockGetter)
 	_, err := lister(ctx)
 	g.Expect(err).ShouldNot(HaveOccurred(), "expected error did not occur")
 }
@@ -212,13 +212,13 @@ func TestList_RetrieveError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGetter := mockScenarios.NewMockGetter(ctrl)
+	mockGetter := mocktestplans.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		GetAll(ctx, matchers.OfType(&[]scenarios.Scenario{})).
+		GetAll(ctx, matchers.OfType(&[]testplans.TestPlan{})).
 		Return(fmt.Errorf("expected error"))
 
-	lister := scenarios.List(mockGetter)
+	lister := testplans.List(mockGetter)
 	_, err := lister(ctx)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
@@ -228,12 +228,12 @@ func TestGet(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGetter := mockScenarios.NewMockGetter(ctrl)
+	mockGetter := mocktestplans.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
 		Return(nil)
-	getter := scenarios.Get(mockGetter)
+	getter := testplans.Get(mockGetter)
 	_, err := getter(ctx, identity.ID)
 	g.Expect(err).ShouldNot(HaveOccurred(), "expected error did not occur")
 }
@@ -243,13 +243,13 @@ func TestGet_Error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGetter := mockScenarios.NewMockGetter(ctrl)
+	mockGetter := mocktestplans.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
 		Return(fmt.Errorf("expected error"))
 
-	getter := scenarios.Get(mockGetter)
+	getter := testplans.Get(mockGetter)
 	_, err := getter(ctx, identity.ID)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
@@ -259,12 +259,12 @@ func TestDelete(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockDeleter := mockScenarios.NewMockDeleter(ctrl)
+	mockDeleter := mocktestplans.NewMockDeleter(ctrl)
 	mockDeleter.
 		EXPECT().
 		Delete(ctx, identity.ID).
 		Return(nil)
-	deleter := scenarios.Delete(mockDeleter)
+	deleter := testplans.Delete(mockDeleter)
 	err := deleter(ctx, identity.ID)
 	g.Expect(err).ShouldNot(HaveOccurred(), "expected error did not occur")
 }
@@ -274,12 +274,12 @@ func TestDelete_Error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockDeleter := mockScenarios.NewMockDeleter(ctrl)
+	mockDeleter := mocktestplans.NewMockDeleter(ctrl)
 	mockDeleter.
 		EXPECT().
 		Delete(ctx, identity.ID).
 		Return(fmt.Errorf("returned error"))
-	deleter := scenarios.Delete(mockDeleter)
+	deleter := testplans.Delete(mockDeleter)
 	err := deleter(ctx, identity.ID)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
@@ -289,25 +289,25 @@ func TestUpdate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater := mocktestplans.NewMockReaderUpdater(ctrl)
 	mockReaderUpdater.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
-		Do(func(ctx context.Context, id string, tp *scenarios.Scenario) {
+		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
+		Do(func(ctx context.Context, id string, tp *testplans.TestPlan) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
 		EXPECT().
-		Update(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{}))
-	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
-	scenario, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+		Update(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{}))
+	updater := testplans.Update(mockReaderUpdater, goodGetProject)
+	testplan, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
-	expectedScenario := &scenarios.Scenario{
+	expectedTestPlan := &testplans.TestPlan{
 		Identity:  &identity,
-		Name:      testScenario.Name,
-		ProjectID: testScenario.ProjectID,
+		Name:      testTestPlan.Name,
+		ProjectID: testTestPlan.ProjectID,
 	}
-	g.Expect(scenario).To(Equal(expectedScenario), "scenarios did not match")
+	g.Expect(testplan).To(Equal(expectedTestPlan), "testplans did not match")
 }
 
 func TestUpdate_ValidationError(t *testing.T) {
@@ -315,9 +315,9 @@ func TestUpdate_ValidationError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
-	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(scenarios.Scenario{}))
+	mockReaderUpdater := mocktestplans.NewMockReaderUpdater(ctrl)
+	updater := testplans.Update(mockReaderUpdater, goodGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testplans.TestPlan{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
@@ -327,9 +327,9 @@ func TestUpdate_InvalidProject(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
-	updater := scenarios.Update(mockReaderUpdater, noProject)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	mockReaderUpdater := mocktestplans.NewMockReaderUpdater(ctrl)
+	updater := testplans.Update(mockReaderUpdater, noProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
 }
@@ -339,9 +339,9 @@ func TestUpdate_ProjectError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
-	updater := scenarios.Update(mockReaderUpdater, errorGetProject)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	mockReaderUpdater := mocktestplans.NewMockReaderUpdater(ctrl)
+	updater := testplans.Update(mockReaderUpdater, errorGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 	g.Expect(metadata.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
 }
@@ -351,13 +351,13 @@ func TestUpdate_GetError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater := mocktestplans.NewMockReaderUpdater(ctrl)
 	mockReaderUpdater.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
 		Return(fmt.Errorf("error during get"))
-	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	updater := testplans.Update(mockReaderUpdater, goodGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 }
 
@@ -366,18 +366,18 @@ func TestUpdate_UpdateError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockReaderUpdater := mockScenarios.NewMockReaderUpdater(ctrl)
+	mockReaderUpdater := mocktestplans.NewMockReaderUpdater(ctrl)
 	mockReaderUpdater.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
-		Do(func(ctx context.Context, id string, tp *scenarios.Scenario) {
+		Get(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
+		Do(func(ctx context.Context, id string, tp *testplans.TestPlan) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
 		EXPECT().
-		Update(ctx, identity.ID, matchers.OfType(&scenarios.Scenario{})).
+		Update(ctx, identity.ID, matchers.OfType(&testplans.TestPlan{})).
 		Return(fmt.Errorf("update error"))
-	updater := scenarios.Update(mockReaderUpdater, goodGetProject)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testScenario))
+	updater := testplans.Update(mockReaderUpdater, goodGetProject)
+	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testTestPlan))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 }

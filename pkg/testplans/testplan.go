@@ -1,4 +1,4 @@
-package scenarios
+package testplans
 
 import (
 	"context"
@@ -11,43 +11,30 @@ import (
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
-//go:generate mockgen -source ./scenarios.go -destination mocks/scenarios.go
+//go:generate mockgen -source ./testplan.go -destination mocks/testplan.go
 
 type projectRetriever func(ctx context.Context, id string) (interface{}, error)
 
-// Step represents an action that need to be performed in order to complete a scenario
-type Step struct {
-	Position        int    `json:"position,omitempty"`
-	Name            string `json:"name,omitempty"`
-	Description     string `json:"description,omitempty"`
-	Action          string `json:"action,omitempty"`
-	ExpectedOutcome string `json:"expectedOutcome,omitempty"`
-}
-
-// Scenario is used to define a test case
-type Scenario struct {
-	Identity      *metadata.Identity     `json:"identity,omitempty"`
-	ProjectID     string                 `json:"projectId,omitempty"`
-	Name          string                 `json:"name,omitempty"`
-	Description   string                 `json:"description,omitempty"`
-	Prerequisites string                 `json:"prerequisites,omitempty"`
-	Steps         []Step                 `json:"steps,omitempty"`
-	Issues        []metadata.LinkedIssue `json:"issues,omitempty"`
-	Labels        []string               `json:"labels,omitempty"`
+// TestPlan is used to define a test case
+type TestPlan struct {
+	Identity    *metadata.Identity `json:"identity,omitempty"`
+	ProjectID   string             `json:"projectId,omitempty"`
+	Name        string             `json:"name,omitempty"`
+	Description string             `json:"description,omitempty"`
 }
 
 // AddIdentity sets the identity of the project
-func (s *Scenario) AddIdentity(identity *metadata.Identity) {
+func (s *TestPlan) AddIdentity(identity *metadata.Identity) {
 	s.Identity = identity
 }
 
 // GetIdentity retruns the identity of the project
-func (s *Scenario) GetIdentity() *metadata.Identity {
+func (s *TestPlan) GetIdentity() *metadata.Identity {
 	return s.Identity
 }
 
-// Validate is used to check the integrity of the scenario object
-func (s *Scenario) Validate() error {
+// Validate checks the integrity of the TestPlan
+func (s *TestPlan) Validate() error {
 	if s.Name == "" {
 		return metadata.NewValidationError("name is a mandatory parameter")
 	}
@@ -84,65 +71,62 @@ type ReaderUpdater interface {
 	Updater
 }
 
-// IdentityGenerator created and identity to be set on the scenario
+// IdentityGenerator created and identity to be set on the testplan
 type IdentityGenerator interface {
 	AddMeta(author string, objType string, identifiable metadata.Identifiable) error
 }
 
-// New returns a function used to create a scenario
+// New returns a function used to create a testplan
 func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
-		scenario := &Scenario{}
-		if err := decoder.Decode(scenario, data); err != nil {
+		testplan := &TestPlan{}
+		if err := decoder.Decode(testplan, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, scenario.ProjectID); err != nil {
+		if _, err := getProject(ctx, testplan.ProjectID); err != nil {
 			if store.IsNotFoundError(err) {
 				return nil, metadata.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		if err := ig.AddMeta(author, "scenario", scenario); err != nil {
+		if err := ig.AddMeta(author, "testplan", testplan); err != nil {
 			return nil, err
 		}
-
-		if err := collection.AddOne(ctx, scenario); err != nil {
+		if err := collection.AddOne(ctx, testplan); err != nil {
 			return nil, err
 		}
-
-		return scenario, nil
+		return testplan, nil
 	}
 }
 
-// List returns a function used to return the scenarios
+// List returns a function used to return the testplans
 func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 	return func(ctx context.Context) ([]interface{}, error) {
-		scenarios := []Scenario{}
-		err := collection.GetAll(ctx, &scenarios)
+		testplans := []TestPlan{}
+		err := collection.GetAll(ctx, &testplans)
 		if err != nil {
 			return nil, err
 		}
-		items := make([]interface{}, len(scenarios))
-		fmt.Println(len(items))
-		for i, v := range scenarios {
+		items := make([]interface{}, len(testplans))
+		for i, v := range testplans {
 			items[i] = v
 		}
 		return items, nil
 	}
 }
 
-// Get returns a function to retrieve a scenario based on the passed ID
+// Get returns a function to retrieve a testplan based on the passed ID
 func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, error) {
 	return func(ctx context.Context, id string) (interface{}, error) {
-		scenario := &Scenario{}
-		if err := collectiom.Get(ctx, id, scenario); err != nil {
+		testplan := &TestPlan{}
+		if err := collectiom.Get(ctx, id, testplan); err != nil {
 			return nil, err
 		}
-		return scenario, nil
+		return testplan, nil
 	}
 }
 
-// Delete returns a function to delete a scenario based on the passed ID
+// Delete returns a function to delete a testplan based on the passed ID
 func Delete(collection Deleter) func(ctx context.Context, id string) error {
 	return func(ctx context.Context, id string) error {
 		if err := collection.Delete(ctx, id); err != nil {
@@ -152,34 +136,34 @@ func Delete(collection Deleter) func(ctx context.Context, id string) error {
 	}
 }
 
-// Update is used to replace a scenario with the provided scenario
+// Update is used to replace a testplan with the provided testplan
 func Update(collection ReaderUpdater, getProject projectRetriever) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
-		scenario := &Scenario{}
-		if err := decoder.Decode(scenario, data); err != nil {
+		testplan := &TestPlan{}
+		if err := decoder.Decode(testplan, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, scenario.ProjectID); err != nil {
+		if _, err := getProject(ctx, testplan.ProjectID); err != nil {
 			if store.IsNotFoundError(err) {
 				return nil, metadata.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		foundScenario, err := Get(collection)(ctx, id)
+		foundTestplan, err := Get(collection)(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		var s *Scenario
+		var s *TestPlan
 		var ok bool
-		if s, ok = foundScenario.(*Scenario); !ok {
+		if s, ok = foundTestplan.(*TestPlan); !ok {
 			return nil, fmt.Errorf("invalid data structure in DB")
 		}
-		scenario.Identity = s.Identity
-		scenario.Identity.UpdateTime = time.Now()
-		scenario.Identity.UpdatedBy = user
-		if err := collection.Update(ctx, id, scenario); err != nil {
+		testplan.Identity = s.Identity
+		testplan.Identity.UpdateTime = time.Now()
+		testplan.Identity.UpdatedBy = user
+		if err := collection.Update(ctx, id, testplan); err != nil {
 			return nil, err
 		}
-		return scenario, nil
+		return testplan, nil
 	}
 }

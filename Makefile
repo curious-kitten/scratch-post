@@ -7,8 +7,8 @@ DOCKER_REPO?="matache91mh"
 APP:=scratch-post
 IMAGE?=$(DOCKER_REPO)/$(APP)
 
-PORT?=9090
-CONF_FILE?=dbconfig.json
+DB_CONF_FILE?=dbconfig.json
+API_CONF_FILE?=apiconfig.json
 
 
 ifeq ($(VERSION),)
@@ -21,7 +21,7 @@ all: install-go-tools lint run-tests build
 build-app: lint
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
 
-run-tests:
+test:
 	go test -v -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 
@@ -35,8 +35,8 @@ lint: fmt
 generate:
 	go generate -v ./...
 
-run-server: build-app
-	$(BIN_DIR)/$(APP) --port $(PORT) --dbconfig $(CONF_FILE)
+run: build-app
+	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --dbconfig $(DB_CONF_FILE)
 
 
 app-image: build-app

@@ -25,4 +25,4 @@ jobs:
       - uses: actions/checkout@v2
       - name: Unit Tests
         run: |
-          make run-tests
+          make test
