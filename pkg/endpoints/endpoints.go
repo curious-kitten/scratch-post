@@ -14,7 +14,11 @@ import (
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
-type create func(ctx context.Context, user string, body io.Reader) (interface{}, error)
+type create func(ctx context.Context, author string, body io.Reader) (interface{}, error)
+type list func(ctx context.Context) ([]interface{}, error)
+type get func(ctx context.Context, id string) (interface{}, error)
+type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
+type deleteItem func(ctx context.Context, id string) error
 
 // Creator reponds to a HTTP Post request to a collection
 func Creator(ctx context.Context, createFunc create, r *mux.Router) {
@@ -37,8 +41,6 @@ func Creator(ctx context.Context, createFunc create, r *mux.Router) {
 	r.HandleFunc("", c).Methods(http.MethodPost)
 	r.HandleFunc("/", c).Methods(http.MethodPost)
 }
-
-type list func(ctx context.Context) ([]interface{}, error)
 
 // Lister reponds to a HTTP Get request for a collection
 func Lister(ctx context.Context, listFunc list, r *mux.Router) {
@@ -72,8 +74,6 @@ type ItemList struct {
 	Items      []interface{} `json:"items"`
 }
 
-type get func(ctx context.Context, id string) (interface{}, error)
-
 // Getter returns a single instance of an item based on the ID in the path
 func Getter(ctx context.Context, getterFunc get, r *mux.Router) {
 	i := func(w http.ResponseWriter, r *http.Request) {
@@ -90,8 +90,6 @@ func Getter(ctx context.Context, getterFunc get, r *mux.Router) {
 	}
 	r.HandleFunc("/{id}", i).Methods(http.MethodGet)
 }
-
-type deleteItem func(ctx context.Context, id string) error
 
 // Deleter provides an API endpoint used to delete an intem
 func Deleter(ctx context.Context, deleterFunc deleteItem, r *mux.Router) {
@@ -110,8 +108,6 @@ func Deleter(ctx context.Context, deleterFunc deleteItem, r *mux.Router) {
 	}
 	r.HandleFunc("/{id}", d).Methods(http.MethodDelete)
 }
-
-type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
 
 // Updater provides an API endpoint used to update an intem
 func Updater(ctx context.Context, updateFunc updateItem, r *mux.Router) {

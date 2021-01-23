@@ -32,6 +32,7 @@ type Config struct {
 type Collections struct {
 	Projects  string `json:"projects"`
 	Scenarios string `json:"scenarios"`
+	TestPlans string `json:"testplans"`
 }
 
 // Validate that the config object is correct
@@ -60,6 +61,9 @@ func (c Collections) Validate() error {
 	}
 	if c.Scenarios == "" {
 		errs.add("scenarios field is mandatory")
+	}
+	if c.TestPlans == "" {
+		errs.add("testplans field is mandatory")
 	}
 	if !errs.isEmpty() {
 		return errs

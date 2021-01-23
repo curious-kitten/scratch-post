@@ -35,6 +35,7 @@ import (
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
+	"github.com/curious-kitten/scratch-post/pkg/testplans"
 )
 
 var (
@@ -113,6 +114,18 @@ func main() {
 	endpoints.Getter(ctx, scenarios.Get(scenarioCollection), scenarioRouter)
 	endpoints.Deleter(ctx, scenarios.Delete(scenarioCollection), scenarioRouter)
 	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
+
+	// Scenario endpoints
+	testPlanCollection, err := store.Collection(config.DataBase, config.Collections.Scenarios, client)
+	if err != nil {
+		panic(err)
+	}
+	testPlanRouter := versionedRouter.PathPrefix("/testplans").Subrouter()
+	endpoints.Creator(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
+	endpoints.Lister(ctx, testplans.List(testPlanCollection), testPlanRouter)
+	endpoints.Getter(ctx, testplans.Get(testPlanCollection), testPlanRouter)
+	endpoints.Deleter(ctx, testplans.Delete(testPlanCollection), testPlanRouter)
+	endpoints.Updater(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
 
 	// Start HTTP Server
 	srv := &http.Server{
