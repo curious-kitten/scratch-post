@@ -34,6 +34,7 @@ type Endpoints struct {
 	Projects  string `json:"projects"`
 	Scenarios string `json:"scenarios"`
 	TestPlans string `json:"testplans"`
+	Executors string `json:"executors"`
 }
 
 // Validate that the config object is correct
@@ -65,6 +66,12 @@ func (c Endpoints) Validate() error {
 	}
 	if c.TestPlans == "" {
 		errs.add("testplans field is mandatory")
+	}
+	if c.Probes == "" {
+		errs.add("probes field is mandatory")
+	}
+	if c.Executors == "" {
+		errs.add("executors field is mandatory")
 	}
 	if !errs.isEmpty() {
 		return errs
