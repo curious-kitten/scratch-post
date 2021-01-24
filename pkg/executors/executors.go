@@ -16,10 +16,10 @@ type getItem func(ctx context.Context, id string) (interface{}, error)
 
 // Executor is used to define a test case
 type Executor struct {
-	Identity      *metadata.Identity     `json:"identity,omitempty"`
-	ProjectID     string                 `json:"projectId,omitempty"`
-	ScenarioID    string				 `json:"scenarioId, omitempty`
-	TestPlanID	  string				`json:"testplanId,omitempty"`
+	Identity   *metadata.Identity `json:"identity,omitempty"`
+	ProjectID  string             `json:"projectId,omitempty"`
+	ScenarioID string             `json:"scenarioId,omitempty"`
+	TestPlanID string             `json:"testplanId,omitempty"`
 }
 
 // AddIdentity sets the identity of the project
@@ -56,7 +56,6 @@ type Getter interface {
 	Get(ctx context.Context, id string, item interface{}) error
 	GetAll(ctx context.Context, items interface{}) error
 }
-
 
 // IdentityGenerator created and identity to be set on the executor
 type IdentityGenerator interface {
@@ -127,4 +126,3 @@ func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, e
 		return executor, nil
 	}
 }
-

@@ -12,9 +12,9 @@ import (
 
 	"github.com/curious-kitten/scratch-post/internal/test/matchers"
 	"github.com/curious-kitten/scratch-post/internal/test/transformers"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/executors"
 	mockExecutors "github.com/curious-kitten/scratch-post/pkg/executors/mocks"
+	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
 var (
@@ -29,7 +29,7 @@ var (
 	}
 
 	testExecutor = &executors.Executor{
-		ProjectID: "zzxxxccvv",
+		ProjectID:  "zzxxxccvv",
 		TestPlanID: "aabbccddeeff",
 		ScenarioID: "qwertyuio",
 	}
@@ -62,7 +62,7 @@ func TestExecutor_Validate(t *testing.T) {
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "empty executor error is not a validation error")
 
 	s = &executors.Executor{
-		ProjectID: "zzxxxccvv",
+		ProjectID:  "zzxxxccvv",
 		TestPlanID: "aabbccddeeff",
 	}
 	err = s.Validate()
@@ -70,7 +70,7 @@ func TestExecutor_Validate(t *testing.T) {
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "executor without a scenario ID is not a validation error")
 
 	s = &executors.Executor{
-		ProjectID: "zzxxxccvv",
+		ProjectID:  "zzxxxccvv",
 		ScenarioID: "qwertyuio",
 	}
 	err = s.Validate()
@@ -84,7 +84,6 @@ func TestExecutor_Validate(t *testing.T) {
 	err = s.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with executor that does not have a project ID")
 	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "executor without a project ID is not a validation error")
-
 
 	err = testExecutor.Validate()
 	g.Expect(err).ShouldNot(HaveOccurred(), "error occurred when minimun requirements have been met")
@@ -113,8 +112,8 @@ func TestNew_Create(t *testing.T) {
 	executor, err := creator(ctx, "tester", transformers.ToReadCloser(testExecutor))
 	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
 	expectedExecutor := &executors.Executor{
-		Identity:  &identity,
-		ProjectID: testExecutor.ProjectID,
+		Identity:   &identity,
+		ProjectID:  testExecutor.ProjectID,
 		ScenarioID: testExecutor.ScenarioID,
 		TestPlanID: testExecutor.TestPlanID,
 	}
@@ -328,4 +327,3 @@ func TestGet_Error(t *testing.T) {
 	_, err := getter(ctx, identity.ID)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
-
