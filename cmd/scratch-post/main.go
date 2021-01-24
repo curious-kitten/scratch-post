@@ -34,6 +34,7 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
 	"github.com/curious-kitten/scratch-post/pkg/endpoints"
+	"github.com/curious-kitten/scratch-post/pkg/executors"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
@@ -127,8 +128,8 @@ func main() {
 	endpoints.Deleter(ctx, scenarios.Delete(scenarioCollection), scenarioRouter)
 	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
 
-	// Scenario endpoints
-	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client)
+	// TestPlan endpoints
+	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client)
 	if err != nil {
 		panic(err)
 	}
@@ -138,6 +139,16 @@ func main() {
 	endpoints.Getter(ctx, testplans.Get(testPlanCollection), testPlanRouter)
 	endpoints.Deleter(ctx, testplans.Delete(testPlanCollection), testPlanRouter)
 	endpoints.Updater(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
+
+	// Executor endpoints
+	executorCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executors, client)
+	if err != nil {
+		panic(err)
+	}
+	executorRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executors).Subrouter()
+	endpoints.Creator(ctx, executors.New(meta, executorCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executorRouter)
+	endpoints.Lister(ctx, executors.List(executorCollection), executorRouter)
+	endpoints.Getter(ctx, executors.Get(executorCollection), executorRouter)
 
 	// Start HTTP Server
 	srv := &http.Server{
