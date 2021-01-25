@@ -6,6 +6,6 @@
         "projects": "/projects",
         "scenarios": "/scenarios",
         "testplans": "/testplans",
-        "executors": "/executors"
+        "executions": "/executions"
     }
 }

@@ -34,7 +34,7 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
 	"github.com/curious-kitten/scratch-post/pkg/endpoints"
-	"github.com/curious-kitten/scratch-post/pkg/executors"
+	"github.com/curious-kitten/scratch-post/pkg/executions"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
@@ -140,15 +140,16 @@ func main() {
 	endpoints.Deleter(ctx, testplans.Delete(testPlanCollection), testPlanRouter)
 	endpoints.Updater(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
 
-	// Executor endpoints
-	executorCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executors, client)
+	// Executions endpoints
+	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client)
 	if err != nil {
 		panic(err)
 	}
-	executorRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executors).Subrouter()
-	endpoints.Creator(ctx, executors.New(meta, executorCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executorRouter)
-	endpoints.Lister(ctx, executors.List(executorCollection), executorRouter)
-	endpoints.Getter(ctx, executors.Get(executorCollection), executorRouter)
+	executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
+	endpoints.Creator(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter)
+	endpoints.Lister(ctx, executions.List(executionCollection), executionRouter)
+	endpoints.Getter(ctx, executions.Get(executionCollection), executionRouter)
+	endpoints.Updater(ctx, executions.Update(executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter)
 
 	// Start HTTP Server
 	srv := &http.Server{

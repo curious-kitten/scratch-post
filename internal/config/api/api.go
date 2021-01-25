@@ -30,11 +30,11 @@ type Config struct {
 
 // Endpoints represent the endpoints that are exposed by the server
 type Endpoints struct {
-	Probes    string `json:"probes"`
-	Projects  string `json:"projects"`
-	Scenarios string `json:"scenarios"`
-	TestPlans string `json:"testplans"`
-	Executors string `json:"executors"`
+	Probes     string `json:"probes"`
+	Projects   string `json:"projects"`
+	Scenarios  string `json:"scenarios"`
+	TestPlans  string `json:"testplans"`
+	Executions string `json:"executions"`
 }
 
 // Validate that the config object is correct
@@ -70,8 +70,8 @@ func (c Endpoints) Validate() error {
 	if c.Probes == "" {
 		errs.add("probes field is mandatory")
 	}
-	if c.Executors == "" {
-		errs.add("executors field is mandatory")
+	if c.Executions == "" {
+		errs.add("executions field is mandatory")
 	}
 	if !errs.isEmpty() {
 		return errs
