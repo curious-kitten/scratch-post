@@ -30,9 +30,10 @@ type Config struct {
 
 // Collections represent the various collections in the store
 type Collections struct {
-	Projects  string `json:"projects"`
-	Scenarios string `json:"scenarios"`
-	TestPlans string `json:"testplans"`
+	Projects   string `json:"projects"`
+	Scenarios  string `json:"scenarios"`
+	TestPlans  string `json:"testplans"`
+	Executions string `json:"executions"`
 }
 
 // Validate that the config object is correct
@@ -64,6 +65,9 @@ func (c Collections) Validate() error {
 	}
 	if c.TestPlans == "" {
 		errs.add("testplans field is mandatory")
+	}
+	if c.Executions == "" {
+		errs.add("executions field is mandatory")
 	}
 	if !errs.isEmpty() {
 		return errs

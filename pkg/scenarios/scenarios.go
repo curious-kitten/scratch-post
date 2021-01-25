@@ -17,7 +17,7 @@ type projectRetriever func(ctx context.Context, id string) (interface{}, error)
 
 // Step represents an action that need to be performed in order to complete a scenario
 type Step struct {
-	Position        int    `json:"position,omitempty"`
+	Position        int    `json:"position"`
 	Name            string `json:"name,omitempty"`
 	Description     string `json:"description,omitempty"`
 	Action          string `json:"action,omitempty"`
@@ -53,6 +53,14 @@ func (s *Scenario) Validate() error {
 	}
 	if s.ProjectID == "" {
 		return metadata.NewValidationError("projectId is a mandatory parameter")
+	}
+	return nil
+}
+
+// Validate is used to check the integrity of a scenario step
+func (s *Step) Validate() error {
+	if s.Name == "" {
+		return metadata.NewValidationError("name is a mandatory parameter for a step")
 	}
 	return nil
 }

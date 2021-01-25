@@ -5,6 +5,7 @@
         "probes": "/probes",
         "projects": "/projects",
         "scenarios": "/scenarios",
-        "testplans": "/testplans"
+        "testplans": "/testplans",
+        "executions": "/executions"
     }
 }

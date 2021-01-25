@@ -26,8 +26,9 @@ test:
 	go tool cover -func=coverage.out
 
 install-go-tools:
-	@./scripts/install_tools.sh
+	GO111MODULE=on CGO_ENABLED=0 go get github.com/golangci/golangci-lint/cmd/golangci-lint
 	go install github.com/golang/mock/mockgen
+	go get golang.org/x/tools/cmd/goimports
 
 lint: fmt
 	golangci-lint run ./...

@@ -34,6 +34,7 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
 	"github.com/curious-kitten/scratch-post/pkg/endpoints"
+	"github.com/curious-kitten/scratch-post/pkg/executions"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
@@ -104,7 +105,7 @@ func main() {
 		panic(err)
 	}
 	//  Projects endpoint
-	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client)
+	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client, []string{"name"})
 	if err != nil {
 		panic(err)
 	}
@@ -116,7 +117,7 @@ func main() {
 	endpoints.Updater(ctx, projects.Update(projectsCollection), projectRouter)
 
 	// Scenario endpoints
-	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client)
+	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
 	if err != nil {
 		panic(err)
 	}
@@ -127,8 +128,8 @@ func main() {
 	endpoints.Deleter(ctx, scenarios.Delete(scenarioCollection), scenarioRouter)
 	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
 
-	// Scenario endpoints
-	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client)
+	// TestPlan endpoints
+	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
 	if err != nil {
 		panic(err)
 	}
@@ -138,6 +139,17 @@ func main() {
 	endpoints.Getter(ctx, testplans.Get(testPlanCollection), testPlanRouter)
 	endpoints.Deleter(ctx, testplans.Delete(testPlanCollection), testPlanRouter)
 	endpoints.Updater(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
+
+	// Executions endpoints
+	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
+	if err != nil {
+		panic(err)
+	}
+	executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
+	endpoints.Creator(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter)
+	endpoints.Lister(ctx, executions.List(executionCollection), executionRouter)
+	endpoints.Getter(ctx, executions.Get(executionCollection), executionRouter)
+	endpoints.Updater(ctx, executions.Update(executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter)
 
 	// Start HTTP Server
 	srv := &http.Server{

@@ -18,25 +18,27 @@ func Client(ctx context.Context, address string) (*mongo.Client, error) {
 }
 
 // Collection creates a collection object for the DB
-func Collection(dbName, collectionName string, client *mongo.Client) (*Data, error) {
+func Collection(dbName, collectionName string, client *mongo.Client, constraints []string) (*Data, error) {
 	coll := client.Database(dbName).Collection(collectionName)
+	indexModel := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "identity.id", Value: 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+	}
+	if len(constraints) > 0 {
+		bsonConstraint := bson.D{}
+		for _, v := range constraints {
+			bsonConstraint = append(bsonConstraint, bson.E{Key: v, Value: 1})
+		}
+		indexModel = append(indexModel, mongo.IndexModel{Keys: bsonConstraint, Options: options.Index().SetUnique(true)})
+	}
+
 	_, err := coll.Indexes().CreateMany(
 		context.Background(),
-		[]mongo.IndexModel{
-			{
-				Keys: bson.D{
-					{Key: "identity.id", Value: 1},
-				},
-				Options: options.Index().SetUnique(true),
-			},
-			{
-				Keys: bson.D{
-					{Key: "projectId", Value: 1},
-					{Key: "name", Value: 1},
-				},
-				Options: options.Index().SetUnique(true),
-			},
-		},
+		indexModel,
 	)
 	if err != nil {
 		return nil, err
