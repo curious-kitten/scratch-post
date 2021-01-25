@@ -19,9 +19,9 @@ type Status string
 
 const (
 	// Pass represents a green execution, when the operation was successful
-	Pass    Status = "pass"
+	Pass Status = "pass"
 	// Fail represents a red execution, when the operation was unsuccessful
-	Fail    Status = "fail"
+	Fail Status = "fail"
 	// Pending represents the grey execution, when the operation was not done
 	Pending Status = "pending"
 )
@@ -147,6 +147,7 @@ func New(ig IdentityGenerator, collection Adder, getProject getItem, getScenario
 
 		execution.PopulateSteps(scenario.Steps)
 		execution.Status = Pending
+		fmt.Println(execution.Identity)
 		if err := collection.AddOne(ctx, execution); err != nil {
 			return nil, err
 		}
@@ -223,14 +224,19 @@ func Update(collection ReaderUpdater, getProject getItem, getScenario getItem, g
 		foundExecution.Status = execution.Status
 
 		for _, v := range execution.Steps {
+			found := false
 			for _, step := range foundExecution.Steps {
 				if v.Name == step.Name && step.Position == v.Position {
+					found = true
 					step.Status = v.Status
 					step.ActualResult = v.ActualResult
 					if v.Status == Fail {
 						foundExecution.Status = Fail
 					}
 				}
+			}
+			if !found {
+				return nil, metadata.NewValidationError(fmt.Sprintf("step '%s' is not part of the current scenario", v.Name))
 			}
 		}
 

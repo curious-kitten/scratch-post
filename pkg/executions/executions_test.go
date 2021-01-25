@@ -374,6 +374,7 @@ func TestUpdate(t *testing.T) {
 		EXPECT().
 		Get(ctx, identity.ID, matchers.OfType(&executions.Execution{})).
 		Do(func(ctx context.Context, id string, e *executions.Execution) {
+			*e = *testExecution
 			e.Identity = &identity
 		})
 	mockReaderUpdater.
@@ -492,8 +493,9 @@ func TestUpdate_UpdateError(t *testing.T) {
 	mockReaderUpdater.
 		EXPECT().
 		Get(ctx, identity.ID, matchers.OfType(&executions.Execution{})).
-		Do(func(ctx context.Context, id string, tp *executions.Execution) {
-			tp.Identity = &identity
+		Do(func(ctx context.Context, id string, e *executions.Execution) {
+			*e = *testExecution
+			e.Identity = &identity
 		})
 	mockReaderUpdater.
 		EXPECT().
