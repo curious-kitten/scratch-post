@@ -105,7 +105,7 @@ func main() {
 		panic(err)
 	}
 	//  Projects endpoint
-	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client)
+	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client, []string{"name"})
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +117,7 @@ func main() {
 	endpoints.Updater(ctx, projects.Update(projectsCollection), projectRouter)
 
 	// Scenario endpoints
-	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client)
+	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
 	if err != nil {
 		panic(err)
 	}
@@ -129,7 +129,7 @@ func main() {
 	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
 
 	// TestPlan endpoints
-	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client)
+	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
 	if err != nil {
 		panic(err)
 	}
@@ -141,7 +141,7 @@ func main() {
 	endpoints.Updater(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
 
 	// Executions endpoints
-	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client)
+	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
 	if err != nil {
 		panic(err)
 	}
