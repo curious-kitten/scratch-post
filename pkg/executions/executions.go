@@ -14,11 +14,15 @@ import (
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
 )
 
+// Status represent the result of an execution
 type Status string
 
 const (
+	// Pass represents a green execution, when the operation was successful
 	Pass    Status = "pass"
+	// Fail represents a red execution, when the operation was unsuccessful
 	Fail    Status = "fail"
+	// Pending represents the grey execution, when the operation was not done
 	Pending Status = "pending"
 )
 
@@ -38,6 +42,7 @@ type Execution struct {
 	ActualResult string  `json:"actualResult,omitempty"`
 }
 
+// Step represents an execution step. This basically ads the status and reason fields to the scenario step
 type Step struct {
 	scenarios.Step `json:",inline"`
 	Status         Status `json:"status,omitempty"`
