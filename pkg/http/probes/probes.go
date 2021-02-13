@@ -5,7 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/curious-kitten/scratch-post/internal/http/helpers"
+	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
 )
 
 type check func() (bool, interface{})

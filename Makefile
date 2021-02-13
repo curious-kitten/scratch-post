@@ -7,7 +7,8 @@ DOCKER_REPO?="matache91mh"
 APP:=scratch-post
 IMAGE?=$(DOCKER_REPO)/$(APP)
 
-DB_CONF_FILE?=dbconfig.json
+ADMIN_DB_CONF_FILE?=admindb.json
+TEST_DB_CONF_FILE?=testdb.json
 API_CONF_FILE?=apiconfig.json
 
 
@@ -36,8 +37,11 @@ lint: fmt
 generate:
 	go generate -v ./...
 
+run-jwt: build-app
+	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE) --isJWT
+
 run: build-app
-	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --dbconfig $(DB_CONF_FILE)
+	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
 
 
 app-image: build-app

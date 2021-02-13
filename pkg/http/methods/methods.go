@@ -1,4 +1,4 @@
-package endpoints
+package methods
 
 import (
 	"context"
@@ -8,9 +8,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/curious-kitten/scratch-post/internal/http/authorization"
-	"github.com/curious-kitten/scratch-post/internal/http/helpers"
+	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
+	"github.com/curious-kitten/scratch-post/pkg/http/auth"
+	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
@@ -20,10 +21,10 @@ type get func(ctx context.Context, id string) (interface{}, error)
 type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
 type deleteItem func(ctx context.Context, id string) error
 
-// Creator reponds to a HTTP Post request to a collection
-func Creator(ctx context.Context, createFunc create, r *mux.Router) {
+// Post reponds to a HTTP Post request to a collection
+func Post(ctx context.Context, createFunc create, r *mux.Router, log logger.Logger) {
 	c := func(w http.ResponseWriter, r *http.Request) {
-		user, err := authorization.GetUserIDFromRequest(r)
+		user, err := auth.GetUserIDFromRequest(r)
 		if err != nil {
 			helpers.FormatError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -38,12 +39,13 @@ func Creator(ctx context.Context, createFunc create, r *mux.Router) {
 		}
 		helpers.FormatResponse(w, item, http.StatusCreated)
 	}
-	r.HandleFunc("", c).Methods(http.MethodPost)
-	r.HandleFunc("/", c).Methods(http.MethodPost)
+	route := r.HandleFunc("", c).Methods(http.MethodPost)
+	path, _ := route.GetPathTemplate()
+	log.Infow("added endpoint", "path", path, "method", http.MethodPost)
 }
 
-// Lister reponds to a HTTP Get request for a collection
-func Lister(ctx context.Context, listFunc list, r *mux.Router) {
+// List reponds to a HTTP Get request for a collection
+func List(ctx context.Context, listFunc list, r *mux.Router, log logger.Logger) {
 	l := func(w http.ResponseWriter, r *http.Request) {
 		toctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
@@ -61,8 +63,9 @@ func Lister(ctx context.Context, listFunc list, r *mux.Router) {
 		}
 		helpers.FormatResponse(w, itemList, http.StatusOK)
 	}
-	r.HandleFunc("", l).Methods(http.MethodGet)
-	r.HandleFunc("/", l).Methods(http.MethodGet)
+	route := r.HandleFunc("", l).Methods(http.MethodGet)
+	path, _ := route.GetPathTemplate()
+	log.Infow("added endpoint", "path", path, "method", http.MethodGet)
 }
 
 // ItemList formats the collection get response to a list
@@ -74,8 +77,8 @@ type ItemList struct {
 	Items      []interface{} `json:"items"`
 }
 
-// Getter returns a single instance of an item based on the ID in the path
-func Getter(ctx context.Context, getterFunc get, r *mux.Router) {
+// Get returns a single instance of an item based on the ID in the path
+func Get(ctx context.Context, getterFunc get, r *mux.Router, log logger.Logger) {
 	i := func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		id := params["id"]
@@ -88,11 +91,13 @@ func Getter(ctx context.Context, getterFunc get, r *mux.Router) {
 		}
 		helpers.FormatResponse(w, item, http.StatusOK)
 	}
-	r.HandleFunc("/{id}", i).Methods(http.MethodGet)
+	route := r.HandleFunc("/{id}", i).Methods(http.MethodGet)
+	path, _ := route.GetPathTemplate()
+	log.Infow("added endpoint", "path", path, "method", http.MethodGet)
 }
 
-// Deleter provides an API endpoint used to delete an intem
-func Deleter(ctx context.Context, deleterFunc deleteItem, r *mux.Router) {
+// Delete provides an API endpoint used to delete an intem
+func Delete(ctx context.Context, deleterFunc deleteItem, r *mux.Router, log logger.Logger) {
 	d := func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		id := params["id"]
@@ -106,15 +111,17 @@ func Deleter(ctx context.Context, deleterFunc deleteItem, r *mux.Router) {
 			Item string `json:"item"`
 		}{Item: id}, http.StatusOK)
 	}
-	r.HandleFunc("/{id}", d).Methods(http.MethodDelete)
+	route := r.HandleFunc("/{id}", d).Methods(http.MethodDelete)
+	path, _ := route.GetPathTemplate()
+	log.Infow("added endpoint", "path", path, "method", http.MethodDelete)
 }
 
-// Updater provides an API endpoint used to update an intem
-func Updater(ctx context.Context, updateFunc updateItem, r *mux.Router) {
+// Put provides an API endpoint used to update an intem
+func Put(ctx context.Context, updateFunc updateItem, r *mux.Router, log logger.Logger) {
 	u := func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		id := params["id"]
-		user, err := authorization.GetUserIDFromRequest(r)
+		user, err := auth.GetUserIDFromRequest(r)
 		if err != nil {
 			helpers.FormatError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -128,7 +135,9 @@ func Updater(ctx context.Context, updateFunc updateItem, r *mux.Router) {
 		}
 		helpers.FormatResponse(w, item, http.StatusOK)
 	}
-	r.HandleFunc("/{id}", u).Methods(http.MethodPut)
+	route := r.HandleFunc("/{id}", u).Methods(http.MethodPut)
+	path, _ := route.GetPathTemplate()
+	log.Infow("added endpoint", "path", path, "method", http.MethodPut)
 }
 
 func handleError(err error, w http.ResponseWriter) {

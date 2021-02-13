@@ -24,17 +24,21 @@ import (
 	"os/signal"
 	"time"
 
-	apiConfig "github.com/curious-kitten/scratch-post/internal/config/api"
-	storeConfig "github.com/curious-kitten/scratch-post/internal/config/store"
+	"github.com/curious-kitten/scratch-post/internal/db"
 	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/health"
-	"github.com/curious-kitten/scratch-post/internal/http/probes"
-	"github.com/curious-kitten/scratch-post/internal/http/router"
 	"github.com/curious-kitten/scratch-post/internal/info"
+	"github.com/curious-kitten/scratch-post/internal/keys"
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
-	"github.com/curious-kitten/scratch-post/pkg/endpoints"
+	"github.com/curious-kitten/scratch-post/pkg/administration/users"
 	"github.com/curious-kitten/scratch-post/pkg/executions"
+	"github.com/curious-kitten/scratch-post/pkg/http/auth"
+	"github.com/curious-kitten/scratch-post/pkg/http/endpoints"
+	"github.com/curious-kitten/scratch-post/pkg/http/methods"
+	"github.com/curious-kitten/scratch-post/pkg/http/middleware"
+	"github.com/curious-kitten/scratch-post/pkg/http/probes"
+	"github.com/curious-kitten/scratch-post/pkg/http/router"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
@@ -42,13 +46,19 @@ import (
 )
 
 var (
-	dbconfigFile  *string
-	apiconfigFile *string
+	testDBConfigFile  *string
+	adminDBConfigFile *string
+	apiConfigFile     *string
+	securityFile      *string
+	isJWT             *bool
 )
 
 func init() {
-	dbconfigFile = flag.String("dbconfig", "/etc/db.json", "Path to DB config settings")
-	apiconfigFile = flag.String("apiconfig", "/etc/api.json", "Path to API config settings")
+	testDBConfigFile = flag.String("testdb", "testdb.json", "Path to DB config settings")
+	adminDBConfigFile = flag.String("admindb", "admindb.json", "Path to admin DB config settings")
+	apiConfigFile = flag.String("apiconfig", "apiconfig.json", "Path to API config settings")
+	isJWT = flag.Bool("isJWT", false, "Sets the authentication type to JWT. Default is session ID")
+	securityFile = flag.String("securityFile", "security.txt", "Path to file which contains the JWT security string")
 	flag.Parse()
 }
 
@@ -73,20 +83,29 @@ func main() {
 
 	log.Info("Reading configurations...")
 	// Reading DB config file
-	dbConfContents, err := os.Open(*dbconfigFile)
+	testDBConfContents, err := os.Open(*testDBConfigFile)
 	if err != nil {
 		panic(err)
 	}
-	storeCfg := &storeConfig.Config{}
-	if err := decoder.Decode(storeCfg, dbConfContents); err != nil {
+	storeCfg := &store.Config{}
+	if err := decoder.Decode(storeCfg, testDBConfContents); err != nil {
+		panic(err)
+	}
+
+	adminDBConfContents, err := os.Open(*adminDBConfigFile)
+	if err != nil {
+		panic(err)
+	}
+	adminDBCfg := &db.Config{}
+	if err := decoder.Decode(adminDBCfg, adminDBConfContents); err != nil {
 		panic(err)
 	}
 	// Reading API config file
-	apiConfContents, err := os.Open(*apiconfigFile)
+	apiConfContents, err := os.Open(*apiConfigFile)
 	if err != nil {
 		panic(err)
 	}
-	apiCfg := &apiConfig.Config{}
+	apiCfg := &endpoints.Config{}
 	if err := decoder.Decode(apiCfg, apiConfContents); err != nil {
 		panic(err)
 	}
@@ -100,21 +119,59 @@ func main() {
 
 	meta := metadata.NewMetaManager()
 
+	sql, err := db.New(*adminDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	err = sql.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	var authorizer auth.Authorizer
+	if *isJWT {
+		securityKey, err := os.Open(*securityFile)
+		if err != nil {
+			panic(err)
+		}
+		keyRetriever := &keys.Retriever{Item: securityKey}
+		authorizer = auth.NewJWTHandler(keyRetriever)
+	} else {
+		authorizer = auth.NewSessionHandler(sql, log)
+	}
+	authorizer.Cleanup(24 * time.Hour)
+
 	client, err := store.Client(ctx, storeCfg.Address)
 	if err != nil {
 		panic(err)
 	}
+
+	userDB := users.NewUserDB(sql)
+
+	authEndpoints := auth.NewEndpoints(ctx, users.IsPasswordCorrect(userDB), authorizer)
+	authEndpoints.Register(versionedRouter)
+
+	// Admin endpoints
+	administrationRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Admin.Prefix).Subrouter()
+
+	// User endpoints
+	usersRouter := administrationRouter.PathPrefix(apiCfg.Endpoints.Admin.Users).Subrouter()
+	usersRouter.Use(middleware.Authorization(authorizer))
+	methods.Post(ctx, users.Create(userDB), usersRouter, log)
+	methods.Get(ctx, users.Get(userDB), usersRouter, log)
+
 	//  Projects endpoint
 	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client, []string{"name"})
 	if err != nil {
 		panic(err)
 	}
 	projectRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Projects).Subrouter()
-	endpoints.Creator(ctx, projects.New(meta, projectsCollection), projectRouter)
-	endpoints.Lister(ctx, projects.List(projectsCollection), projectRouter)
-	endpoints.Getter(ctx, projects.Get(projectsCollection), projectRouter)
-	endpoints.Deleter(ctx, projects.Delete(projectsCollection), projectRouter)
-	endpoints.Updater(ctx, projects.Update(projectsCollection), projectRouter)
+	projectRouter.Use(middleware.Authorization(authorizer))
+	methods.Post(ctx, projects.New(meta, projectsCollection), projectRouter, log)
+	methods.List(ctx, projects.List(projectsCollection), projectRouter, log)
+	methods.Get(ctx, projects.Get(projectsCollection), projectRouter, log)
+	methods.Delete(ctx, projects.Delete(projectsCollection), projectRouter, log)
+	methods.Put(ctx, projects.Update(projectsCollection), projectRouter, log)
 
 	// Scenario endpoints
 	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
@@ -122,11 +179,12 @@ func main() {
 		panic(err)
 	}
 	scenarioRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Scenarios).Subrouter()
-	endpoints.Creator(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
-	endpoints.Lister(ctx, scenarios.List(scenarioCollection), scenarioRouter)
-	endpoints.Getter(ctx, scenarios.Get(scenarioCollection), scenarioRouter)
-	endpoints.Deleter(ctx, scenarios.Delete(scenarioCollection), scenarioRouter)
-	endpoints.Updater(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter)
+	scenarioRouter.Use(middleware.Authorization(authorizer))
+	methods.Post(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
+	methods.List(ctx, scenarios.List(scenarioCollection), scenarioRouter, log)
+	methods.Get(ctx, scenarios.Get(scenarioCollection), scenarioRouter, log)
+	methods.Delete(ctx, scenarios.Delete(scenarioCollection), scenarioRouter, log)
+	methods.Put(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
 
 	// TestPlan endpoints
 	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
@@ -134,11 +192,12 @@ func main() {
 		panic(err)
 	}
 	testPlanRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.TestPlans).Subrouter()
-	endpoints.Creator(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
-	endpoints.Lister(ctx, testplans.List(testPlanCollection), testPlanRouter)
-	endpoints.Getter(ctx, testplans.Get(testPlanCollection), testPlanRouter)
-	endpoints.Deleter(ctx, testplans.Delete(testPlanCollection), testPlanRouter)
-	endpoints.Updater(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter)
+	testPlanRouter.Use(middleware.Authorization(authorizer))
+	methods.Post(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
+	methods.List(ctx, testplans.List(testPlanCollection), testPlanRouter, log)
+	methods.Get(ctx, testplans.Get(testPlanCollection), testPlanRouter, log)
+	methods.Delete(ctx, testplans.Delete(testPlanCollection), testPlanRouter, log)
+	methods.Put(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
 
 	// Executions endpoints
 	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
@@ -146,10 +205,11 @@ func main() {
 		panic(err)
 	}
 	executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
-	endpoints.Creator(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter)
-	endpoints.Lister(ctx, executions.List(executionCollection), executionRouter)
-	endpoints.Getter(ctx, executions.Get(executionCollection), executionRouter)
-	endpoints.Updater(ctx, executions.Update(executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter)
+	executionRouter.Use(middleware.Authorization(authorizer))
+	methods.Post(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
+	methods.List(ctx, executions.List(executionCollection), executionRouter, log)
+	methods.Get(ctx, executions.Get(executionCollection), executionRouter, log)
+	methods.Put(ctx, executions.Update(executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
 
 	// Start HTTP Server
 	srv := &http.Server{

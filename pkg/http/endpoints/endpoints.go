@@ -1,4 +1,4 @@
-package api
+package endpoints
 
 import (
 	"fmt"
@@ -35,6 +35,13 @@ type Endpoints struct {
 	Scenarios  string `json:"scenarios"`
 	TestPlans  string `json:"testplans"`
 	Executions string `json:"executions"`
+	Admin      Admin  `json:"admin"`
+}
+
+// Admin represent the administration endpoints
+type Admin struct {
+	Prefix string `json:"prefix"`
+	Users  string `json:"users"`
 }
 
 // Validate that the config object is correct
