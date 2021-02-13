@@ -6,6 +6,10 @@
         "projects": "/projects",
         "scenarios": "/scenarios",
         "testplans": "/testplans",
-        "executions": "/executions"
+        "executions": "/executions",
+        "admin": {
+            "prefix": "/admin",
+            "users": "/users"
+        }
     }
 }

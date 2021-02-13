@@ -6,14 +6,13 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 
-	"github.com/curious-kitten/scratch-post/internal/http/authorization"
+	"github.com/curious-kitten/scratch-post/pkg/http/auth"
 )
 
 type responseWriter struct {
 	http.ResponseWriter
 	status      int
 	wroteHeader bool
-	body        []byte
 }
 
 func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
@@ -32,11 +31,6 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
 	rw.wroteHeader = true
-}
-
-func (rw *responseWriter) Write(body []byte) (int, error) {
-	rw.body = body
-	return rw.ResponseWriter.Write(body)
 }
 
 type logger interface {
@@ -67,7 +61,6 @@ func Logging(logger logger) func(http.Handler) http.Handler {
 				"status", wrapped.Status(),
 				"method", r.Method,
 				"path", r.URL.EscapedPath(),
-				"body", string(wrapped.body),
 			)
 		}
 
@@ -75,41 +68,46 @@ func Logging(logger logger) func(http.Handler) http.Handler {
 	}
 }
 
-// JWTAuthorization verifies a request has a valid JWT token associated
-func JWTAuthorization(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		token, err := authorization.GetAuthToken(r)
-		if err != nil {
-			if err == http.ErrNoCookie {
+// Authorization verifies a request has a valid token associated
+func Authorization(authorizer auth.Authorizer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			token, err := auth.GetAuthToken(r)
+			if err != nil {
+				if err == http.ErrNoCookie {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			valid, username, err := authorizer.Validate(token)
+			if err != nil {
+				if err == jwt.ErrSignatureInvalid {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if !valid {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		valid, claim, err := authorization.ValidateToken(token)
-		if err != nil {
-			if err == jwt.ErrSignatureInvalid {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if !valid {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
 
-		ok := authorization.IsBlacklisted(token)
-		if ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+			auth.AddUserIDHeader(r, username)
+			defer auth.RemoveUserIDHeader(r)
+			next.ServeHTTP(w, r)
 		}
-
-		authorization.AddUserIDHeader(r, claim)
-		defer authorization.RemoveUserIDHeader(r)
-		next.ServeHTTP(w, r)
+		return http.HandlerFunc(fn)
 	}
-	return http.HandlerFunc(fn)
+}
+
+func SessionAuthorization() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+
+		}
+		return http.HandlerFunc(fn)
+	}
 }

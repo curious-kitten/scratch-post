@@ -3,12 +3,11 @@ package router
 import (
 	"net/http"
 
-	"github.com/curious-kitten/scratch-post/internal/http/helpers"
-
 	"github.com/gorilla/mux"
 
-	"github.com/curious-kitten/scratch-post/internal/http/middleware"
 	"github.com/curious-kitten/scratch-post/internal/logger"
+	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
+	"github.com/curious-kitten/scratch-post/pkg/http/middleware"
 )
 
 // New creates a new mux router
