@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
 type checkPassword func(ctx context.Context, username, password string) error
@@ -23,10 +23,10 @@ type LoginRequest struct {
 
 func (u *LoginRequest) Validate() error {
 	if u.Username == "" {
-		return metadata.NewValidationError("username not provided")
+		return errors.NewValidationError("username not provided")
 	}
 	if u.Password == "" {
-		return metadata.NewValidationError("password not provided")
+		return errors.NewValidationError("password not provided")
 	}
 	return nil
 }

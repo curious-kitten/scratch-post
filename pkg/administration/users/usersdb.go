@@ -3,7 +3,19 @@ package users
 import (
 	"context"
 	"database/sql"
+
+	// embeding sql queries
+	_ "embed"
 )
+
+//go:embed sql/postgress/selectUser.sql
+var getUserByNameSQL string
+
+//go:embed sql/postgress/getUserPassword.sql
+var getUserPasswordSQL string
+
+//go:embed sql/postgress/insertUser.sql
+var insertUserSQL string
 
 // UserDB encapsulates user queries
 type UserDB interface {
@@ -18,9 +30,8 @@ type userDB struct {
 
 // GetUser returns the user matching the username from the DB
 func (u *userDB) GetUser(ctx context.Context, username string) (*User, error) {
-	stmt := "select username, email, name from users WHERE username=$1"
 	user := &User{}
-	row := u.db.QueryRowContext(ctx, stmt, username)
+	row := u.db.QueryRowContext(ctx, getUserByNameSQL, username)
 	if row.Err() != nil {
 		return nil, row.Err()
 	}
@@ -31,9 +42,8 @@ func (u *userDB) GetUser(ctx context.Context, username string) (*User, error) {
 }
 
 func (u *userDB) GetPasswordForUser(ctx context.Context, username string) (string, error) {
-	stmt := "select password from users WHERE username=$1"
 	var password string
-	row := u.db.QueryRowContext(ctx, stmt, username)
+	row := u.db.QueryRowContext(ctx, getUserPasswordSQL, username)
 	if row.Err() != nil {
 		return "", row.Err()
 	}
@@ -44,9 +54,7 @@ func (u *userDB) GetPasswordForUser(ctx context.Context, username string) (strin
 }
 
 func (u *userDB) CreateUser(ctx context.Context, user *User) error {
-	stmt := "insert into users (username, name, email, password) values($1, $2, $3, $4)"
-
-	row := u.db.QueryRowContext(ctx, stmt, user.Username, user.Name, user.Email, user.Password)
+	row := u.db.QueryRowContext(ctx, insertUserSQL, user.Username, user.Name, user.Email, user.Password)
 	if row.Err() != nil {
 		return row.Err()
 	}

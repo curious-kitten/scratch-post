@@ -171,7 +171,7 @@ func main() {
 	methods.List(ctx, projects.List(projectsCollection), projectRouter, log)
 	methods.Get(ctx, projects.Get(projectsCollection), projectRouter, log)
 	methods.Delete(ctx, projects.Delete(projectsCollection), projectRouter, log)
-	methods.Put(ctx, projects.Update(projectsCollection), projectRouter, log)
+	methods.Put(ctx, projects.Update(meta, projectsCollection), projectRouter, log)
 
 	// Scenario endpoints
 	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
@@ -184,7 +184,7 @@ func main() {
 	methods.List(ctx, scenarios.List(scenarioCollection), scenarioRouter, log)
 	methods.Get(ctx, scenarios.Get(scenarioCollection), scenarioRouter, log)
 	methods.Delete(ctx, scenarios.Delete(scenarioCollection), scenarioRouter, log)
-	methods.Put(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
+	methods.Put(ctx, scenarios.Update(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
 
 	// TestPlan endpoints
 	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
@@ -197,7 +197,7 @@ func main() {
 	methods.List(ctx, testplans.List(testPlanCollection), testPlanRouter, log)
 	methods.Get(ctx, testplans.Get(testPlanCollection), testPlanRouter, log)
 	methods.Delete(ctx, testplans.Delete(testPlanCollection), testPlanRouter, log)
-	methods.Put(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
+	methods.Put(ctx, testplans.Update(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
 
 	// Executions endpoints
 	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
@@ -209,7 +209,7 @@ func main() {
 	methods.Post(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
 	methods.List(ctx, executions.List(executionCollection), executionRouter, log)
 	methods.Get(ctx, executions.Get(executionCollection), executionRouter, log)
-	methods.Put(ctx, executions.Update(executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
+	methods.Put(ctx, executions.Update(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
 
 	// Start HTTP Server
 	srv := &http.Server{

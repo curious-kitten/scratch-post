@@ -4,82 +4,20 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/store"
-
-	// "github.com/curious-kitten/scratch-post/pkg/executors"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
-	"github.com/curious-kitten/scratch-post/pkg/scenarios"
-)
-
-// Status represent the result of an execution
-type Status string
-
-const (
-	// Pass represents a green execution, when the operation was successful
-	Pass Status = "pass"
-	// Fail represents a red execution, when the operation was unsuccessful
-	Fail Status = "fail"
-	// Pending represents the grey execution, when the operation was not done
-	Pending Status = "pending"
+	executionv1 "github.com/curious-kitten/scratch-post/pkg/api/v1/execution"
+	metadatav1 "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
+	scenariov1 "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 //go:generate mockgen -source ./executions.go -destination mocks/executions.go
 
 type getItem func(ctx context.Context, id string) (interface{}, error)
-
-// Execution is used to define a test case
-type Execution struct {
-	Identity     *metadata.Identity `json:"identity,omitempty"`
-	ProjectID    string             `json:"projectId,omitempty"`
-	ScenarioID   string             `json:"scenarioId,omitempty"`
-	TestPlanID   string             `json:"testplanId,omitempty"`
-	Name         string
-	Steps        []*Step `json:"steps,omitempty"`
-	Status       Status  `json:"status,omitempty"`
-	ActualResult string  `json:"actualResult,omitempty"`
-}
-
-// Step represents an execution step. This basically ads the status and reason fields to the scenario step
-type Step struct {
-	scenarios.Step `json:",inline"`
-	Status         Status `json:"status,omitempty"`
-	ActualResult   string `json:"actualResult,omitempty"`
-}
-
-// AddIdentity sets the identity of the project
-func (e *Execution) AddIdentity(identity *metadata.Identity) {
-	e.Identity = identity
-}
-
-// GetIdentity retruns the identity of the project
-func (e *Execution) GetIdentity() *metadata.Identity {
-	return e.Identity
-}
-
-// Validate is used to check the integrity of the execution object
-func (e *Execution) Validate() error {
-	if e.TestPlanID == "" {
-		return metadata.NewValidationError("testplanID is a mandatory parameter")
-	}
-	if e.ScenarioID == "" {
-		return metadata.NewValidationError("scenarioID is a mandatory parameter")
-	}
-	if e.ProjectID == "" {
-		return metadata.NewValidationError("projectId is a mandatory parameter")
-	}
-	return nil
-}
-
-// PopulateSteps the Execution stepts given scenario steps
-func (e *Execution) PopulateSteps(s []scenarios.Step) {
-	e.Steps = make([]*Step, len(s))
-	for i, v := range s {
-		e.Steps[i] = &Step{Step: v, Status: Pending}
-	}
-}
 
 // Adder is used to add items to the store
 type Adder interface {
@@ -92,9 +30,9 @@ type Getter interface {
 	GetAll(ctx context.Context, items interface{}) error
 }
 
-// IdentityGenerator created and identity to be set on the execution
-type IdentityGenerator interface {
-	AddMeta(author string, objType string, identifiable metadata.Identifiable) error
+type MetaHandler interface {
+	NewMeta(author string, objType string) (*metadatav1.Identity, error)
+	UpdateMeta(author string, identity *metadatav1.Identity)
 }
 
 // Updater is used to replace information into the Data Base
@@ -109,44 +47,46 @@ type ReaderUpdater interface {
 }
 
 // New returns a function used to create an execution
-func New(ig IdentityGenerator, collection Adder, getProject getItem, getScenario getItem, getTestPlan getItem) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
+func New(meta MetaHandler, collection Adder, getProject getItem, getScenario getItem, getTestPlan getItem) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
-		execution := &Execution{}
+		execution := &executionv1.Execution{}
 		if err := decoder.Decode(execution, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, execution.ProjectID); err != nil {
+		if _, err := getProject(ctx, execution.ProjectId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("project with the provided ID does not exist")
+				return nil, errors.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		_, err := getTestPlan(ctx, execution.TestPlanID)
+		_, err := getTestPlan(ctx, execution.TestPlanId)
 		if err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("scenario with the provided ID does not exist")
+				return nil, errors.NewValidationError("scenario with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		raw, err := getScenario(ctx, execution.ScenarioID)
+		raw, err := getScenario(ctx, execution.ScenarioId)
 		if err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("test plan with the provided ID does not exist")
+				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
 			}
 			return nil, err
 		}
 
-		scenario, ok := raw.(*scenarios.Scenario)
+		scenario, ok := raw.(*scenariov1.Scenario)
 		if !ok {
-			return nil, fmt.Errorf("invalid DB entry for scenario %s", execution.ScenarioID)
+			return nil, fmt.Errorf("invalid DB entry for scenario %s", execution.ScenarioId)
 		}
 
-		if err := ig.AddMeta(author, "execution", execution); err != nil {
+		identity, err := meta.NewMeta(author, "execution")
+		if err != nil {
 			return nil, err
 		}
+		execution.Identity = identity
 
 		execution.PopulateSteps(scenario.Steps)
-		execution.Status = Pending
+		execution.Status = executionv1.Status_Pending
 		fmt.Println(execution.Identity)
 		if err := collection.AddOne(ctx, execution); err != nil {
 			return nil, err
@@ -159,15 +99,15 @@ func New(ig IdentityGenerator, collection Adder, getProject getItem, getScenario
 // List returns a function used to return the executions
 func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 	return func(ctx context.Context) ([]interface{}, error) {
-		executions := []Execution{}
+		executions := []executionv1.Execution{}
 		err := collection.GetAll(ctx, &executions)
 		if err != nil {
 			return nil, err
 		}
 		items := make([]interface{}, len(executions))
 		fmt.Println(len(items))
-		for i, v := range executions {
-			items[i] = v
+		for i := range executions {
+			items[i] = proto.Clone(&executions[i]).(*executionv1.Execution)
 		}
 		return items, nil
 	}
@@ -176,7 +116,7 @@ func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 // Get returns a function to retrieve a execution based on the passed ID
 func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, error) {
 	return func(ctx context.Context, id string) (interface{}, error) {
-		execution := &Execution{}
+		execution := &executionv1.Execution{}
 		if err := collectiom.Get(ctx, id, execution); err != nil {
 			return nil, err
 		}
@@ -185,27 +125,27 @@ func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, e
 }
 
 // Update is used to replace a scenario with the provided scenario
-func Update(collection ReaderUpdater, getProject getItem, getScenario getItem, getTestPlan getItem) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
+func Update(meta MetaHandler, collection ReaderUpdater, getProject getItem, getScenario getItem, getTestPlan getItem) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
-		execution := &Execution{}
+		execution := &executionv1.Execution{}
 		if err := decoder.Decode(execution, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, execution.ProjectID); err != nil {
+		if _, err := getProject(ctx, execution.ProjectId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("project with the provided ID does not exist")
+				return nil, errors.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		if _, err := getScenario(ctx, execution.ScenarioID); err != nil {
+		if _, err := getScenario(ctx, execution.ScenarioId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("scenario with the provided ID does not exist")
+				return nil, errors.NewValidationError("scenario with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		if _, err := getTestPlan(ctx, execution.TestPlanID); err != nil {
+		if _, err := getTestPlan(ctx, execution.TestPlanId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("test plan with the provided ID does not exist")
+				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
 			}
 			return nil, err
 		}
@@ -214,29 +154,28 @@ func Update(collection ReaderUpdater, getProject getItem, getScenario getItem, g
 			return nil, err
 		}
 
-		foundExecution, ok := rawExecution.(*Execution)
+		foundExecution, ok := rawExecution.(*executionv1.Execution)
 		if !ok {
 			return nil, fmt.Errorf("invalid data sructure in DB")
 		}
 
-		foundExecution.Identity.UpdateTime = time.Now()
-		foundExecution.Identity.UpdatedBy = user
+		meta.UpdateMeta(user, foundExecution.Identity)
 		foundExecution.Status = execution.Status
 
 		for _, v := range execution.Steps {
 			found := false
 			for _, step := range foundExecution.Steps {
-				if v.Name == step.Name && step.Position == v.Position {
+				if v.Definition.Name == step.Definition.Name && step.Definition.Position == v.Definition.Position {
 					found = true
 					step.Status = v.Status
 					step.ActualResult = v.ActualResult
-					if v.Status == Fail {
-						foundExecution.Status = Fail
+					if v.Status == executionv1.Status_Fail {
+						foundExecution.Status = executionv1.Status_Fail
 					}
 				}
 			}
 			if !found {
-				return nil, metadata.NewValidationError(fmt.Sprintf("step '%s' is not part of the current scenario", v.Name))
+				return nil, errors.NewValidationError(fmt.Sprintf("step '%s' is not part of the current scenario", v.Definition.Name))
 			}
 		}
 

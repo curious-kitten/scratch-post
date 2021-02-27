@@ -1,0 +1,48 @@
+syntax = "proto3";
+package metadata.scratchpost.curiouskitten;
+option go_package = "github.com/curious-kitten/scratch-post/pkg/api/v1/execution";
+
+import "metadata/metadata.proto";
+import "scenario/scenario.proto";
+
+
+// Represents a step that has to be completed in order to complete the test
+message StepExecution {
+    // Definition of the step to be executed
+    .scenario.scratchpost.curiouskitten.Step definition = 1;
+    // Status of the execution. Defaults to Pending
+    Status status = 2;
+    // Details about the exectuion results
+    string ActualResult = 3;
+    // Issues associated with the step execution
+    repeated .metadata.scratchpost.curiouskitten.LinkedIssue issues = 10;
+
+}
+
+// Represents an execution of a scenario. It associates with a Scenario through the `scenarioId`. 
+// It needs an association with a project and a test plan. This is done through the `projectId` and `testPlanId`
+message Execution {
+    // Identification for the execution
+    .metadata.scratchpost.curiouskitten.Identity  identity = 1;
+    // ID of the associated project
+    string projectId = 2;
+    string scenarioId = 3;
+    string testPlanId = 4;
+    Status status = 5;
+    string name = 6;
+    string description = 7;
+    string prerequisites = 8;
+    repeated StepExecution steps = 9;
+    repeated .metadata.scratchpost.curiouskitten.LinkedIssue issues = 10;
+    repeated string labels = 11;
+}
+
+// Status of an execution
+enum Status {
+    // an execution that has not been completed
+    Pending = 0;
+    // an execution result did not match the expected
+    Fail = 1;
+    // an execution result matches the expected
+    Pass = 2;
+}

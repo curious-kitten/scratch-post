@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 // Validatable represents an item that has constraints on what a correct structure is an imposes these constraints through the Validate method
@@ -19,10 +19,10 @@ func Decode(item Validatable, data io.Reader) error {
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(item)
 	if err != nil {
-		return metadata.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
+		return errors.NewValidationError(fmt.Sprintf("invalid scenario body: %s", err.Error()))
 	}
 	if err = item.Validate(); err != nil {
-		return metadata.NewValidationError(err.Error())
+		return errors.NewValidationError(err.Error())
 	}
 	return nil
 }

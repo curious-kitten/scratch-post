@@ -1,0 +1,12 @@
+syntax = "proto3";
+package project.scratchpost.curiouskitten;
+option go_package = "github.com/curious-kitten/scratch-post/pkg/api/v1/project";
+
+import "metadata/metadata.proto";
+
+
+message Project {
+    .metadata.scratchpost.curiouskitten.Identity  identity = 1;
+    string name = 3;
+    string description = 4;
+}

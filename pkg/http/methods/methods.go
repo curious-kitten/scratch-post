@@ -10,9 +10,9 @@ import (
 
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 	"github.com/curious-kitten/scratch-post/pkg/http/auth"
 	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
 )
 
 type create func(ctx context.Context, author string, body io.Reader) (interface{}, error)
@@ -144,7 +144,7 @@ func handleError(err error, w http.ResponseWriter) {
 	switch {
 	case store.IsNotFoundError(err):
 		helpers.FormatError(w, "could not find requested item", http.StatusNotFound)
-	case metadata.IsValidationError(err):
+	case errors.IsValidationError(err):
 		helpers.FormatError(w, err.Error(), http.StatusBadRequest)
 	case store.IsDuplicateError(err):
 		helpers.FormatError(w, "item already exists", http.StatusBadRequest)

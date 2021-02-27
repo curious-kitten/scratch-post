@@ -4,44 +4,23 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/store"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
+	metadatav1 "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
+	testplanv1 "github.com/curious-kitten/scratch-post/pkg/api/v1/testplan"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 //go:generate mockgen -source ./testplan.go -destination mocks/testplan.go
 
 type projectRetriever func(ctx context.Context, id string) (interface{}, error)
 
-// TestPlan is used to define a test case
-type TestPlan struct {
-	Identity    *metadata.Identity `json:"identity,omitempty"`
-	ProjectID   string             `json:"projectId,omitempty"`
-	Name        string             `json:"name,omitempty"`
-	Description string             `json:"description,omitempty"`
-}
-
-// AddIdentity sets the identity of the project
-func (s *TestPlan) AddIdentity(identity *metadata.Identity) {
-	s.Identity = identity
-}
-
-// GetIdentity retruns the identity of the project
-func (s *TestPlan) GetIdentity() *metadata.Identity {
-	return s.Identity
-}
-
-// Validate checks the integrity of the TestPlan
-func (s *TestPlan) Validate() error {
-	if s.Name == "" {
-		return metadata.NewValidationError("name is a mandatory parameter")
-	}
-	if s.ProjectID == "" {
-		return metadata.NewValidationError("projectId is a mandatory parameter")
-	}
-	return nil
+type MetaHandler interface {
+	NewMeta(author string, objType string) (*metadatav1.Identity, error)
+	UpdateMeta(author string, identity *metadatav1.Identity)
 }
 
 // Adder is used to add items to the store
@@ -71,27 +50,24 @@ type ReaderUpdater interface {
 	Updater
 }
 
-// IdentityGenerator created and identity to be set on the testplan
-type IdentityGenerator interface {
-	AddMeta(author string, objType string, identifiable metadata.Identifiable) error
-}
-
 // New returns a function used to create a testplan
-func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
+func New(meta MetaHandler, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
-		testplan := &TestPlan{}
+		testplan := &testplanv1.TestPlan{}
 		if err := decoder.Decode(testplan, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, testplan.ProjectID); err != nil {
+		if _, err := getProject(ctx, testplan.ProjectId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("project with the provided ID does not exist")
+				return nil, errors.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		if err := ig.AddMeta(author, "testplan", testplan); err != nil {
+		identity, err := meta.NewMeta(author, "testplan")
+		if err != nil {
 			return nil, err
 		}
+		testplan.Identity = identity
 		if err := collection.AddOne(ctx, testplan); err != nil {
 			return nil, err
 		}
@@ -102,14 +78,14 @@ func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) fu
 // List returns a function used to return the testplans
 func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 	return func(ctx context.Context) ([]interface{}, error) {
-		testplans := []TestPlan{}
+		testplans := []testplanv1.TestPlan{}
 		err := collection.GetAll(ctx, &testplans)
 		if err != nil {
 			return nil, err
 		}
 		items := make([]interface{}, len(testplans))
-		for i, v := range testplans {
-			items[i] = v
+		for i := range testplans {
+			items[i] = proto.Clone(&testplans[i]).(*testplanv1.TestPlan)
 		}
 		return items, nil
 	}
@@ -118,7 +94,7 @@ func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 // Get returns a function to retrieve a testplan based on the passed ID
 func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, error) {
 	return func(ctx context.Context, id string) (interface{}, error) {
-		testplan := &TestPlan{}
+		testplan := &testplanv1.TestPlan{}
 		if err := collectiom.Get(ctx, id, testplan); err != nil {
 			return nil, err
 		}
@@ -137,15 +113,15 @@ func Delete(collection Deleter) func(ctx context.Context, id string) error {
 }
 
 // Update is used to replace a testplan with the provided testplan
-func Update(collection ReaderUpdater, getProject projectRetriever) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
+func Update(meta MetaHandler, collection ReaderUpdater, getProject projectRetriever) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
-		testplan := &TestPlan{}
+		testplan := &testplanv1.TestPlan{}
 		if err := decoder.Decode(testplan, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, testplan.ProjectID); err != nil {
+		if _, err := getProject(ctx, testplan.ProjectId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("project with the provided ID does not exist")
+				return nil, errors.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
@@ -153,14 +129,13 @@ func Update(collection ReaderUpdater, getProject projectRetriever) func(ctx cont
 		if err != nil {
 			return nil, err
 		}
-		var s *TestPlan
+		var t *testplanv1.TestPlan
 		var ok bool
-		if s, ok = foundTestplan.(*TestPlan); !ok {
+		if t, ok = foundTestplan.(*testplanv1.TestPlan); !ok {
 			return nil, fmt.Errorf("invalid data structure in DB")
 		}
-		testplan.Identity = s.Identity
-		testplan.Identity.UpdateTime = time.Now()
-		testplan.Identity.UpdatedBy = user
+		testplan.Identity = t.Identity
+		meta.UpdateMeta(user, testplan.Identity)
 		if err := collection.Update(ctx, id, testplan); err != nil {
 			return nil, err
 		}
