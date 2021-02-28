@@ -15,12 +15,14 @@ import (
 
 type checkPassword func(ctx context.Context, username, password string) error
 
+// LoginRequest is used to request access to the API
 type LoginRequest struct {
 	Username string
 	Password string
 	Duration int
 }
 
+// Validate the Login Request
 func (u *LoginRequest) Validate() error {
 	if u.Username == "" {
 		return errors.NewValidationError("username not provided")
@@ -31,12 +33,14 @@ func (u *LoginRequest) Validate() error {
 	return nil
 }
 
+// Endpoints used to authorize an end user
 type Endpoints struct {
 	token             Authorizer
 	isPasswordCorrect checkPassword
 	ctx               context.Context
 }
 
+// Authorizer is used to validate the user request
 type Authorizer interface {
 	GenerateSecurityString(username string) (string, time.Time, error)
 	Invalidate(token string) error
@@ -44,6 +48,7 @@ type Authorizer interface {
 	Cleanup(cleanInterval time.Duration)
 }
 
+// NewEndpoints is used setup the autorization endpoints
 func NewEndpoints(ctx context.Context, isPasswordCorrect checkPassword, token Authorizer) *Endpoints {
 	return &Endpoints{
 		token:             token,
@@ -91,6 +96,7 @@ func (e *Endpoints) logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Register is used to attach the authorization endpoints to a given mux router
 func (e *Endpoints) Register(r *mux.Router) {
 	r.HandleFunc("/login", e.login).Methods(http.MethodPost)
 	r.HandleFunc("/logout", e.logout).Methods(http.MethodPost)

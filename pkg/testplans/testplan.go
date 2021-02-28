@@ -18,6 +18,7 @@ import (
 
 type projectRetriever func(ctx context.Context, id string) (interface{}, error)
 
+// MetaHandler handles metadata information
 type MetaHandler interface {
 	NewMeta(author string, objType string) (*metadatav1.Identity, error)
 	UpdateMeta(author string, identity *metadatav1.Identity)

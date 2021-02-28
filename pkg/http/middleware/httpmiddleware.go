@@ -102,12 +102,3 @@ func Authorization(authorizer auth.Authorizer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(fn)
 	}
 }
-
-func SessionAuthorization() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-
-		}
-		return http.HandlerFunc(fn)
-	}
-}

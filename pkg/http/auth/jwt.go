@@ -27,10 +27,12 @@ type Claim struct {
 	jwt.StandardClaims
 }
 
+// Keys is the interface that needs to be implemented to retrieve the key needed to sign a token
 type Keys interface {
 	GetOne() ([]byte, error)
 }
 
+// NewJWTHandler is used to setup a JWT authorizer
 func NewJWTHandler(keys Keys) *JWT {
 	return &JWT{
 		keys:              keys,
@@ -38,6 +40,7 @@ func NewJWTHandler(keys Keys) *JWT {
 	}
 }
 
+// JWT is used to generate and verify JST tokens
 type JWT struct {
 	keys              Keys
 	blackListedTokens map[string]struct{}
@@ -77,7 +80,7 @@ func (j *JWT) Validate(tknStr string) (bool, string, error) {
 	return tkn.Valid, claim.Username, nil
 }
 
-// BlacklistToken blacklists a token so that it cannot be used anymore
+// Invalidate blacklists a token so that it cannot be used anymore
 func (j *JWT) Invalidate(token string) error {
 	j.blackListedTokens[token] = struct{}{}
 	return nil

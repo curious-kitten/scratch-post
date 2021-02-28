@@ -9,10 +9,12 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
+// NewSessionID is used to generate unique session IDs for user authentication
 func NewSessionID() string {
 	return ksuid.New().String()
 }
 
+// Session is used manage generated authentication sessions
 type Session struct {
 	db  *sql.DB
 	log logger.Logger
