@@ -68,47 +68,33 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	app := info.App{
-		Name:    "scratch-post",
-		Version: "0.0.1-beta",
-	}
-
+	app := info.AppInfo()
 	instance := info.InstanceInfo()
 
 	log, flush, err := logger.New(app, instance, true)
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	defer flush()
 
 	log.Info("Reading configurations...")
 	// Reading DB config file
 	testDBConfContents, err := os.Open(*testDBConfigFile)
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
+
 	storeCfg := &store.Config{}
-	if err := decoder.Decode(storeCfg, testDBConfContents); err != nil {
-		panic(err)
-	}
+	err = decoder.Decode(storeCfg, testDBConfContents)
+	exitOnError(log, err)
 
 	adminDBConfContents, err := os.Open(*adminDBConfigFile)
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	adminDBCfg := &db.Config{}
-	if err := decoder.Decode(adminDBCfg, adminDBConfContents); err != nil {
-		panic(err)
-	}
+	err = decoder.Decode(adminDBCfg, adminDBConfContents)
+	exitOnError(log, err)
 	// Reading API config file
 	apiConfContents, err := os.Open(*apiConfigFile)
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	apiCfg := &endpoints.Config{}
-	if err := decoder.Decode(apiCfg, apiConfContents); err != nil {
-		panic(err)
-	}
+	err = decoder.Decode(apiCfg, apiConfContents)
+	exitOnError(log, err)
 
 	log.Info("Starting app...")
 	r := router.New(log)
@@ -120,20 +106,15 @@ func main() {
 	meta := metadata.NewMetaManager()
 
 	sql, err := db.New(*adminDBCfg)
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
+
 	err = sql.Ping()
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 
 	var authorizer auth.Authorizer
 	if *isJWT {
 		securityKey, err := os.Open(*securityFile)
-		if err != nil {
-			panic(err)
-		}
+		exitOnError(log, err)
 		keyRetriever := &keys.Retriever{Item: securityKey}
 		authorizer = auth.NewJWTHandler(keyRetriever)
 	} else {
@@ -142,11 +123,10 @@ func main() {
 	authorizer.Cleanup(24 * time.Hour)
 
 	client, err := store.Client(ctx, storeCfg.Address)
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 
-	userDB := users.NewUserDB(sql)
+	userDB, err := users.NewUserDB(sql)
+	exitOnError(log, err)
 
 	authEndpoints := auth.NewEndpoints(ctx, users.IsPasswordCorrect(userDB), authorizer)
 	authEndpoints.Register(versionedRouter)
@@ -162,54 +142,46 @@ func main() {
 
 	//  Projects endpoint
 	projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client, []string{"name"})
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	projectRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Projects).Subrouter()
 	projectRouter.Use(middleware.Authorization(authorizer))
 	methods.Post(ctx, projects.New(meta, projectsCollection), projectRouter, log)
 	methods.List(ctx, projects.List(projectsCollection), projectRouter, log)
 	methods.Get(ctx, projects.Get(projectsCollection), projectRouter, log)
 	methods.Delete(ctx, projects.Delete(projectsCollection), projectRouter, log)
-	methods.Put(ctx, projects.Update(projectsCollection), projectRouter, log)
+	methods.Put(ctx, projects.Update(meta, projectsCollection), projectRouter, log)
 
 	// Scenario endpoints
 	scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	scenarioRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Scenarios).Subrouter()
 	scenarioRouter.Use(middleware.Authorization(authorizer))
 	methods.Post(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
 	methods.List(ctx, scenarios.List(scenarioCollection), scenarioRouter, log)
 	methods.Get(ctx, scenarios.Get(scenarioCollection), scenarioRouter, log)
 	methods.Delete(ctx, scenarios.Delete(scenarioCollection), scenarioRouter, log)
-	methods.Put(ctx, scenarios.Update(scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
+	methods.Put(ctx, scenarios.Update(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
 
 	// TestPlan endpoints
 	testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	testPlanRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.TestPlans).Subrouter()
 	testPlanRouter.Use(middleware.Authorization(authorizer))
 	methods.Post(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
 	methods.List(ctx, testplans.List(testPlanCollection), testPlanRouter, log)
 	methods.Get(ctx, testplans.Get(testPlanCollection), testPlanRouter, log)
 	methods.Delete(ctx, testplans.Delete(testPlanCollection), testPlanRouter, log)
-	methods.Put(ctx, testplans.Update(testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
+	methods.Put(ctx, testplans.Update(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
 
 	// Executions endpoints
 	executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
-	if err != nil {
-		panic(err)
-	}
+	exitOnError(log, err)
 	executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
 	executionRouter.Use(middleware.Authorization(authorizer))
 	methods.Post(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
 	methods.List(ctx, executions.List(executionCollection), executionRouter, log)
 	methods.Get(ctx, executions.Get(executionCollection), executionRouter, log)
-	methods.Put(ctx, executions.Update(executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
+	methods.Put(ctx, executions.Update(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
 
 	// Start HTTP Server
 	srv := &http.Server{
@@ -230,7 +202,12 @@ func main() {
 	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	err = srv.Shutdown(ctx)
+	exitOnError(log, err)
+}
+
+func exitOnError(log logger.Logger, err error) {
 	if err != nil {
+		log.Errorw("fatal error during startup", "error", err)
 		panic(err)
 	}
 }

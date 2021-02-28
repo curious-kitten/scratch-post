@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 var (
@@ -83,17 +83,17 @@ type User struct {
 // Validate checks that all user constraints are met
 func (u *User) Validate() error {
 	if !u.Username.IsValid() {
-		return metadata.NewValidationError("provided username is not valid")
+		return errors.NewValidationError("provided username is not valid")
 	}
 	if !u.Email.IsValid() {
-		return metadata.NewValidationError("provided email is not valid")
+		return errors.NewValidationError("provided email is not valid")
 	}
 	if !u.Password.IsValid() {
-		return metadata.NewValidationError("password does not meet minimum requirements")
+		return errors.NewValidationError("password does not meet minimum requirements")
 	}
 	// Not much validation here. Thanks Musk :|
 	if u.Name == "" {
-		return metadata.NewValidationError("name is a mandatory parameter")
+		return errors.NewValidationError("name is a mandatory parameter")
 	}
 	return nil
 }

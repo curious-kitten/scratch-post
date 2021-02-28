@@ -4,65 +4,23 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/store"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
+	metadatav1 "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
+	scenariov1 "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 //go:generate mockgen -source ./scenarios.go -destination mocks/scenarios.go
 
 type projectRetriever func(ctx context.Context, id string) (interface{}, error)
 
-// Step represents an action that need to be performed in order to complete a scenario
-type Step struct {
-	Position        int    `json:"position"`
-	Name            string `json:"name,omitempty"`
-	Description     string `json:"description,omitempty"`
-	Action          string `json:"action,omitempty"`
-	ExpectedOutcome string `json:"expectedOutcome,omitempty"`
-}
-
-// Scenario is used to define a test case
-type Scenario struct {
-	Identity      *metadata.Identity     `json:"identity,omitempty"`
-	ProjectID     string                 `json:"projectId,omitempty"`
-	Name          string                 `json:"name,omitempty"`
-	Description   string                 `json:"description,omitempty"`
-	Prerequisites string                 `json:"prerequisites,omitempty"`
-	Steps         []Step                 `json:"steps,omitempty"`
-	Issues        []metadata.LinkedIssue `json:"issues,omitempty"`
-	Labels        []string               `json:"labels,omitempty"`
-}
-
-// AddIdentity sets the identity of the project
-func (s *Scenario) AddIdentity(identity *metadata.Identity) {
-	s.Identity = identity
-}
-
-// GetIdentity retruns the identity of the project
-func (s *Scenario) GetIdentity() *metadata.Identity {
-	return s.Identity
-}
-
-// Validate is used to check the integrity of the scenario object
-func (s *Scenario) Validate() error {
-	if s.Name == "" {
-		return metadata.NewValidationError("name is a mandatory parameter")
-	}
-	if s.ProjectID == "" {
-		return metadata.NewValidationError("projectId is a mandatory parameter")
-	}
-	return nil
-}
-
-// Validate is used to check the integrity of a scenario step
-func (s *Step) Validate() error {
-	if s.Name == "" {
-		return metadata.NewValidationError("name is a mandatory parameter for a step")
-	}
-	return nil
+type MetaHandler interface {
+	NewMeta(author string, objType string) (*metadatav1.Identity, error)
+	UpdateMeta(author string, identity *metadatav1.Identity)
 }
 
 // Adder is used to add items to the store
@@ -92,27 +50,24 @@ type ReaderUpdater interface {
 	Updater
 }
 
-// IdentityGenerator created and identity to be set on the scenario
-type IdentityGenerator interface {
-	AddMeta(author string, objType string, identifiable metadata.Identifiable) error
-}
-
 // New returns a function used to create a scenario
-func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
+func New(meta MetaHandler, collection Adder, getProject projectRetriever) func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, author string, data io.Reader) (interface{}, error) {
-		scenario := &Scenario{}
+		scenario := &scenariov1.Scenario{}
 		if err := decoder.Decode(scenario, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, scenario.ProjectID); err != nil {
+		if _, err := getProject(ctx, scenario.ProjectId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("project with the provided ID does not exist")
+				return nil, errors.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
-		if err := ig.AddMeta(author, "scenario", scenario); err != nil {
+		identity, err := meta.NewMeta(author, "scenario")
+		if err != nil {
 			return nil, err
 		}
+		scenario.Identity = identity
 
 		if err := collection.AddOne(ctx, scenario); err != nil {
 			return nil, err
@@ -125,15 +80,15 @@ func New(ig IdentityGenerator, collection Adder, getProject projectRetriever) fu
 // List returns a function used to return the scenarios
 func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 	return func(ctx context.Context) ([]interface{}, error) {
-		scenarios := []Scenario{}
-		err := collection.GetAll(ctx, &scenarios)
+		scenarioList := []scenariov1.Scenario{}
+		err := collection.GetAll(ctx, &scenarioList)
 		if err != nil {
 			return nil, err
 		}
-		items := make([]interface{}, len(scenarios))
+		items := make([]interface{}, len(scenarioList))
 		fmt.Println(len(items))
-		for i, v := range scenarios {
-			items[i] = v
+		for i := range scenarioList {
+			items[i] = proto.Clone(&scenarioList[i]).(*scenariov1.Scenario)
 		}
 		return items, nil
 	}
@@ -142,7 +97,7 @@ func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
 // Get returns a function to retrieve a scenario based on the passed ID
 func Get(collectiom Getter) func(ctx context.Context, id string) (interface{}, error) {
 	return func(ctx context.Context, id string) (interface{}, error) {
-		scenario := &Scenario{}
+		scenario := &scenariov1.Scenario{}
 		if err := collectiom.Get(ctx, id, scenario); err != nil {
 			return nil, err
 		}
@@ -161,15 +116,15 @@ func Delete(collection Deleter) func(ctx context.Context, id string) error {
 }
 
 // Update is used to replace a scenario with the provided scenario
-func Update(collection ReaderUpdater, getProject projectRetriever) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
+func Update(meta MetaHandler, collection ReaderUpdater, getProject projectRetriever) func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
 	return func(ctx context.Context, user string, id string, data io.Reader) (interface{}, error) {
-		scenario := &Scenario{}
+		scenario := &scenariov1.Scenario{}
 		if err := decoder.Decode(scenario, data); err != nil {
 			return nil, err
 		}
-		if _, err := getProject(ctx, scenario.ProjectID); err != nil {
+		if _, err := getProject(ctx, scenario.ProjectId); err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, metadata.NewValidationError("project with the provided ID does not exist")
+				return nil, errors.NewValidationError("project with the provided ID does not exist")
 			}
 			return nil, err
 		}
@@ -177,14 +132,13 @@ func Update(collection ReaderUpdater, getProject projectRetriever) func(ctx cont
 		if err != nil {
 			return nil, err
 		}
-		var s *Scenario
+		var s *scenariov1.Scenario
 		var ok bool
-		if s, ok = foundScenario.(*Scenario); !ok {
+		if s, ok = foundScenario.(*scenariov1.Scenario); !ok {
 			return nil, fmt.Errorf("invalid data structure in DB")
 		}
 		scenario.Identity = s.Identity
-		scenario.Identity.UpdateTime = time.Now()
-		scenario.Identity.UpdatedBy = user
+		meta.UpdateMeta(user, scenario.Identity)
 		if err := collection.Update(ctx, id, scenario); err != nil {
 			return nil, err
 		}

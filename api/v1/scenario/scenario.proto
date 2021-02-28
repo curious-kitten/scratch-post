@@ -1,0 +1,31 @@
+syntax = "proto3";
+package scenario.scratchpost.curiouskitten;
+option go_package = "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario";
+
+import "metadata/metadata.proto";
+
+
+// Represents a step that has to be completed in order to complete the test
+message Step {
+    // Used to order step execution
+    int32 position = 1;
+    // Name of the step
+    string name = 2;
+    // Describe what the step intention is
+    string description = 3;
+    // Describe what needs to be done in order to perform the step
+    string action = 4;
+    // Describe what you expect the resoult of the action to be
+    string expectedOutcome = 5;
+}
+
+message Scenario {
+    .metadata.scratchpost.curiouskitten.Identity  identity = 1;
+    string projectId = 2;
+    string name = 3;
+    string description = 4;
+    string prerequisites = 5;
+    repeated Step steps = 6;
+    repeated .metadata.scratchpost.curiouskitten.LinkedIssue issues = 7;
+    repeated string labels = 8;
+}

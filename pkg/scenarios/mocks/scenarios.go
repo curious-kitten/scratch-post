@@ -8,9 +8,59 @@ import (
 	context "context"
 	reflect "reflect"
 
-	metadata "github.com/curious-kitten/scratch-post/pkg/metadata"
+	metadata "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
 	gomock "github.com/golang/mock/gomock"
 )
+
+// MockMetaHandler is a mock of MetaHandler interface
+type MockMetaHandler struct {
+	ctrl     *gomock.Controller
+	recorder *MockMetaHandlerMockRecorder
+}
+
+// MockMetaHandlerMockRecorder is the mock recorder for MockMetaHandler
+type MockMetaHandlerMockRecorder struct {
+	mock *MockMetaHandler
+}
+
+// NewMockMetaHandler creates a new mock instance
+func NewMockMetaHandler(ctrl *gomock.Controller) *MockMetaHandler {
+	mock := &MockMetaHandler{ctrl: ctrl}
+	mock.recorder = &MockMetaHandlerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockMetaHandler) EXPECT() *MockMetaHandlerMockRecorder {
+	return m.recorder
+}
+
+// NewMeta mocks base method
+func (m *MockMetaHandler) NewMeta(author, objType string) (*metadata.Identity, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewMeta", author, objType)
+	ret0, _ := ret[0].(*metadata.Identity)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewMeta indicates an expected call of NewMeta
+func (mr *MockMetaHandlerMockRecorder) NewMeta(author, objType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewMeta", reflect.TypeOf((*MockMetaHandler)(nil).NewMeta), author, objType)
+}
+
+// UpdateMeta mocks base method
+func (m *MockMetaHandler) UpdateMeta(author string, identity *metadata.Identity) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UpdateMeta", author, identity)
+}
+
+// UpdateMeta indicates an expected call of UpdateMeta
+func (mr *MockMetaHandlerMockRecorder) UpdateMeta(author, identity interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMeta", reflect.TypeOf((*MockMetaHandler)(nil).UpdateMeta), author, identity)
+}
 
 // MockAdder is a mock of Adder interface
 type MockAdder struct {
@@ -237,41 +287,4 @@ func (m *MockReaderUpdater) Update(ctx context.Context, id string, item interfac
 func (mr *MockReaderUpdaterMockRecorder) Update(ctx, id, item interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockReaderUpdater)(nil).Update), ctx, id, item)
-}
-
-// MockIdentityGenerator is a mock of IdentityGenerator interface
-type MockIdentityGenerator struct {
-	ctrl     *gomock.Controller
-	recorder *MockIdentityGeneratorMockRecorder
-}
-
-// MockIdentityGeneratorMockRecorder is the mock recorder for MockIdentityGenerator
-type MockIdentityGeneratorMockRecorder struct {
-	mock *MockIdentityGenerator
-}
-
-// NewMockIdentityGenerator creates a new mock instance
-func NewMockIdentityGenerator(ctrl *gomock.Controller) *MockIdentityGenerator {
-	mock := &MockIdentityGenerator{ctrl: ctrl}
-	mock.recorder = &MockIdentityGeneratorMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockIdentityGenerator) EXPECT() *MockIdentityGeneratorMockRecorder {
-	return m.recorder
-}
-
-// AddMeta mocks base method
-func (m *MockIdentityGenerator) AddMeta(author, objType string, identifiable metadata.Identifiable) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddMeta", author, objType, identifiable)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddMeta indicates an expected call of AddMeta
-func (mr *MockIdentityGeneratorMockRecorder) AddMeta(author, objType, identifiable interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMeta", reflect.TypeOf((*MockIdentityGenerator)(nil).AddMeta), author, objType, identifiable)
 }

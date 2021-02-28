@@ -1,0 +1,44 @@
+syntax = "proto3";
+package metadata.scratchpost.curiouskitten;
+option go_package = "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata";
+
+// Represents a link to an remote issue and issue information
+message LinkedIssue {
+    // URL for the issue
+    string link = 1;
+    // Severiry of the issue
+    Severity severity = 2;
+    // Type of the issue
+    IssueType IssueType = 3;
+    // State of the issue (ie. Resolve, Done, In Progress)
+    string State = 4;
+}
+
+message Identity {
+    // Id is used to uniquely identify items
+    string id = 1;
+    // Helps group distinct items toghether
+    string type = 2;
+    // Versionning the test entity
+    int32 version = 3;
+    // Author
+    string createdBy = 4;
+    // Indicates who las modified the item
+    string updatedBy = 5;
+    // Unix epoch representation of the creation time
+    int64 creationTime = 6;
+    // Unix epoch representation of the time the item was last updated
+    int64 updateTime = 7;
+}
+
+enum Severity {
+    LOW = 0;
+    MEDIUM = 1;
+    HIGH = 2;
+}
+
+enum IssueType {
+    EPIC = 0;
+    STORY = 1;
+    DEFECT = 2;
+}

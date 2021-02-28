@@ -11,40 +11,35 @@ import (
 
 	"github.com/curious-kitten/scratch-post/internal/test/matchers"
 	"github.com/curious-kitten/scratch-post/internal/test/transformers"
-	"github.com/curious-kitten/scratch-post/pkg/metadata"
+	metadata "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
+	project "github.com/curious-kitten/scratch-post/pkg/api/v1/project"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	mockProjects "github.com/curious-kitten/scratch-post/pkg/projects/mocks"
 )
 
 var (
 	identity = metadata.Identity{
-		ID:           "aabbccddee",
+		Id:           "aabbccddee",
 		Type:         "project",
 		Version:      1,
 		CreatedBy:    "author",
 		UpdatedBy:    "author",
-		CreationTime: time.Now(),
-		UpdateTime:   time.Now(),
+		CreationTime: time.Now().Unix(),
+		UpdateTime:   time.Now().Unix(),
 	}
 
-	testProject = &projects.Project{
+	testProject = &project.Project{
 		Name: "test project",
 	}
 )
 
-func TestProject_AddIdentity(t *testing.T) {
-	g := NewWithT(t)
-	s := projects.Project{}
-	s.AddIdentity(&identity)
-	g.Expect(s.GetIdentity()).To(Equal(&identity))
-}
-
 func TestScenario_Validate(t *testing.T) {
 	g := NewWithT(t)
-	p := &projects.Project{}
+	p := &project.Project{}
 	err := p.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with empty scenario")
-	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "empty scenario error is not a validation error")
+	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "empty scenario error is not a validation error")
 	p.Name = "Test Name"
 	err = p.Validate()
 	g.Expect(err).ShouldNot(HaveOccurred(), "error occurred when minimun requirements have been met")
@@ -55,24 +50,21 @@ func TestNew_Create(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockProjects.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mockProjects.NewMockMetaHandler(ctrl)
 	mockGenerator.
 		EXPECT().
-		AddMeta("tester", "project", matchers.OfType(&projects.Project{})).
-		Return(nil).
-		Do(func(author string, objType string, identifiable metadata.Identifiable) {
-			identifiable.AddIdentity(&identity)
-		})
+		NewMeta("tester", "project").
+		Return(&identity, nil)
 	mockAdder := mockProjects.NewMockAdder(ctrl)
 	mockAdder.
 		EXPECT().
-		AddOne(ctx, matchers.OfType(&projects.Project{})).
+		AddOne(ctx, matchers.OfType(&project.Project{})).
 		Return(nil)
 
 	creator := projects.New(mockGenerator, mockAdder)
 	scenario, err := creator(ctx, "tester", transformers.ToReadCloser(testProject))
 	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
-	expectedProject := &projects.Project{
+	expectedProject := &project.Project{
 		Identity: &identity,
 		Name:     testProject.Name,
 	}
@@ -84,12 +76,12 @@ func TestNew_MarshallError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockProjects.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mockProjects.NewMockMetaHandler(ctrl)
 	mockAdder := mockProjects.NewMockAdder(ctrl)
 	creator := projects.New(mockGenerator, mockAdder)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(struct{ SomeField string }{SomeField: "test"}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestNew_ValidationError(t *testing.T) {
@@ -97,12 +89,12 @@ func TestNew_ValidationError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockProjects.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mockProjects.NewMockMetaHandler(ctrl)
 	mockAdder := mockProjects.NewMockAdder(ctrl)
 	creator := projects.New(mockGenerator, mockAdder)
-	_, err := creator(ctx, "tester", transformers.ToReadCloser(&projects.Project{}))
+	_, err := creator(ctx, "tester", transformers.ToReadCloser(&project.Project{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestNew_AddMetaError(t *testing.T) {
@@ -110,11 +102,11 @@ func TestNew_AddMetaError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockProjects.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mockProjects.NewMockMetaHandler(ctrl)
 	mockGenerator.
 		EXPECT().
-		AddMeta("tester", "project", matchers.OfType(&projects.Project{})).
-		Return(fmt.Errorf("identity error"))
+		NewMeta("tester", "project").
+		Return(nil, fmt.Errorf("identity error"))
 	mockAdder := mockProjects.NewMockAdder(ctrl)
 	creator := projects.New(mockGenerator, mockAdder)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testProject))
@@ -126,19 +118,15 @@ func TestNew_AddToCollectionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-	mockGenerator := mockProjects.NewMockIdentityGenerator(ctrl)
+	mockGenerator := mockProjects.NewMockMetaHandler(ctrl)
 	mockGenerator.
 		EXPECT().
-		AddMeta("tester", "project", matchers.OfType(&projects.Project{})).
-		Return(nil).
-		Do(func(author string, objType string, identifiable metadata.Identifiable) error {
-			identifiable.AddIdentity(&identity)
-			return nil
-		})
+		NewMeta("tester", "project").
+		Return(&identity, nil)
 	mockAdder := mockProjects.NewMockAdder(ctrl)
 	mockAdder.
 		EXPECT().
-		AddOne(ctx, matchers.OfType(&projects.Project{})).
+		AddOne(ctx, matchers.OfType(&project.Project{})).
 		Return(fmt.Errorf("expected error"))
 
 	creator := projects.New(mockGenerator, mockAdder)
@@ -154,7 +142,7 @@ func TestList(t *testing.T) {
 	mockGetter := mockProjects.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		GetAll(ctx, matchers.OfType(&[]projects.Project{})).
+		GetAll(ctx, matchers.OfType(&[]project.Project{})).
 		Return(nil)
 
 	lister := projects.List(mockGetter)
@@ -170,7 +158,7 @@ func TestList_RetrieveError(t *testing.T) {
 	mockGetter := mockProjects.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		GetAll(ctx, matchers.OfType(&[]projects.Project{})).
+		GetAll(ctx, matchers.OfType(&[]project.Project{})).
 		Return(fmt.Errorf("expected error"))
 
 	lister := projects.List(mockGetter)
@@ -186,10 +174,10 @@ func TestGet(t *testing.T) {
 	mockGetter := mockProjects.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Get(ctx, identity.Id, matchers.OfType(&project.Project{})).
 		Return(nil)
 	getter := projects.Get(mockGetter)
-	_, err := getter(ctx, identity.ID)
+	_, err := getter(ctx, identity.Id)
 	g.Expect(err).ShouldNot(HaveOccurred(), "expected error did not occur")
 }
 
@@ -201,11 +189,11 @@ func TestGet_Error(t *testing.T) {
 	mockGetter := mockProjects.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Get(ctx, identity.Id, matchers.OfType(&project.Project{})).
 		Return(fmt.Errorf("expected error"))
 
 	getter := projects.Get(mockGetter)
-	_, err := getter(ctx, identity.ID)
+	_, err := getter(ctx, identity.Id)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
 
@@ -217,10 +205,10 @@ func TestDelete(t *testing.T) {
 	mockDeleter := mockProjects.NewMockDeleter(ctrl)
 	mockDeleter.
 		EXPECT().
-		Delete(ctx, identity.ID).
+		Delete(ctx, identity.Id).
 		Return(nil)
 	deleter := projects.Delete(mockDeleter)
-	err := deleter(ctx, identity.ID)
+	err := deleter(ctx, identity.Id)
 	g.Expect(err).ShouldNot(HaveOccurred(), "expected error did not occur")
 }
 
@@ -232,10 +220,10 @@ func TestDelete_Error(t *testing.T) {
 	mockDeleter := mockProjects.NewMockDeleter(ctrl)
 	mockDeleter.
 		EXPECT().
-		Delete(ctx, identity.ID).
+		Delete(ctx, identity.Id).
 		Return(fmt.Errorf("returned error"))
 	deleter := projects.Delete(mockDeleter)
-	err := deleter(ctx, identity.ID)
+	err := deleter(ctx, identity.Id)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
 
@@ -247,21 +235,23 @@ func TestUpdate(t *testing.T) {
 	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
 	mockReaderUpdater.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
-		Do(func(ctx context.Context, id string, tp *projects.Project) {
+		Get(ctx, identity.Id, matchers.OfType(&project.Project{})).
+		Do(func(ctx context.Context, id string, tp *project.Project) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
 		EXPECT().
-		Update(ctx, identity.ID, matchers.OfType(&projects.Project{}))
-	updater := projects.Update(mockReaderUpdater)
-	project, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
+		Update(ctx, identity.Id, matchers.OfType(&project.Project{}))
+	mockMetaHandler := mockProjects.NewMockMetaHandler(ctrl)
+	mockMetaHandler.EXPECT().UpdateMeta("tester", matchers.OfType(&metadata.Identity{}))
+	updater := projects.Update(mockMetaHandler, mockReaderUpdater)
+	createdProject, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testProject))
 	g.Expect(err).ShouldNot(HaveOccurred(), "unexpected error occurred")
-	expectedProject := &projects.Project{
+	expectedProject := &project.Project{
 		Identity: &identity,
 		Name:     testProject.Name,
 	}
-	g.Expect(project).To(Equal(expectedProject), "projects did not match")
+	g.Expect(createdProject).To(Equal(expectedProject), "projects did not match")
 }
 
 func TestUpdate_ValidationError(t *testing.T) {
@@ -270,10 +260,11 @@ func TestUpdate_ValidationError(t *testing.T) {
 	defer ctrl.Finish()
 	ctx := context.Background()
 	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
-	updater := projects.Update(mockReaderUpdater)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(projects.Project{}))
+	mockMetaHandler := mockProjects.NewMockMetaHandler(ctrl)
+	updater := projects.Update(mockMetaHandler, mockReaderUpdater)
+	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(project.Project{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(metadata.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestUpdate_GetError(t *testing.T) {
@@ -284,10 +275,11 @@ func TestUpdate_GetError(t *testing.T) {
 	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
 	mockReaderUpdater.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Get(ctx, identity.Id, matchers.OfType(&project.Project{})).
 		Return(fmt.Errorf("error during get"))
-	updater := projects.Update(mockReaderUpdater)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
+	mockMetaHandler := mockProjects.NewMockMetaHandler(ctrl)
+	updater := projects.Update(mockMetaHandler, mockReaderUpdater)
+	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testProject))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 }
 
@@ -299,15 +291,17 @@ func TestUpdate_UpdateError(t *testing.T) {
 	mockReaderUpdater := mockProjects.NewMockReaderUpdater(ctrl)
 	mockReaderUpdater.
 		EXPECT().
-		Get(ctx, identity.ID, matchers.OfType(&projects.Project{})).
-		Do(func(ctx context.Context, id string, tp *projects.Project) {
+		Get(ctx, identity.Id, matchers.OfType(&project.Project{})).
+		Do(func(ctx context.Context, id string, tp *project.Project) {
 			tp.Identity = &identity
 		})
 	mockReaderUpdater.
 		EXPECT().
-		Update(ctx, identity.ID, matchers.OfType(&projects.Project{})).
+		Update(ctx, identity.Id, matchers.OfType(&project.Project{})).
 		Return(fmt.Errorf("update error"))
-	updater := projects.Update(mockReaderUpdater)
-	_, err := updater(ctx, "tester", identity.ID, transformers.ToReadCloser(testProject))
+	mockMetaHandler := mockProjects.NewMockMetaHandler(ctrl)
+	mockMetaHandler.EXPECT().UpdateMeta("tester", matchers.OfType(&metadata.Identity{}))
+	updater := projects.Update(mockMetaHandler, mockReaderUpdater)
+	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testProject))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
 }

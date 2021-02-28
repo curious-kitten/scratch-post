@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/sony/sonyflake"
+
+	metadatav1 "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
 )
 
 type severity string
@@ -27,55 +29,10 @@ const (
 	Defect issueType = "Defect"
 )
 
-// ValidationError represents an issue with value setting on a struct
-type ValidationError struct {
-	message string
-}
-
-func (v *ValidationError) Error() string {
-	return v.message
-}
-
-// IsValidationError checkIfAnError is a validation error
-func IsValidationError(err error) bool {
-	switch err.(type) {
-	case *ValidationError:
-		return true
-	default:
-		return false
-	}
-}
-
-// NewValidationError creates a new ValidationError
-func NewValidationError(message string) error {
-	return &ValidationError{
-		message: message,
-	}
-}
-
-// LinkedIssue are used to identify what external resorce the currect test item refers to
-type LinkedIssue struct {
-	Link     string    `json:"link"`
-	Severity severity  `json:"severity"`
-	Type     issueType `json:"type"`
-	State    string    `json:"state"`
-}
-
-// Identity represents information to identify the given item
-type Identity struct {
-	ID           string    `json:"id"`
-	Type         string    `json:"type"`
-	Version      int       `json:"version"`
-	CreatedBy    string    `json:"createdBy"`
-	UpdatedBy    string    `json:"updatedBy"`
-	CreationTime time.Time `json:"creationTime"`
-	UpdateTime   time.Time `json:"updateTime"`
-}
-
 // Identifiable represents an object that has/needs an Identity
 type Identifiable interface {
-	AddIdentity(identity *Identity)
-	GetIdentity() *Identity
+	AddIdentity(identity *metadatav1.Identity)
+	GetIdentity() *metadatav1.Identity
 }
 
 // NewMetaManager creates a new meta data manager
@@ -90,27 +47,25 @@ type MetaManager struct {
 	generator *sonyflake.Sonyflake
 }
 
-// AddMeta adds identity to an Identifiable item
-func (p *MetaManager) AddMeta(author string, objType string, identifiable Identifiable) error {
+// NewMeta creates a new identity
+func (p *MetaManager) NewMeta(author string, objType string) (*metadatav1.Identity, error) {
 	id, err := p.generator.NextID()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	identifiable.AddIdentity(&Identity{
-		ID:           fmt.Sprintf("%x", id),
+	return &metadatav1.Identity{
+		Id:           fmt.Sprintf("%x", id),
 		Type:         objType,
 		Version:      1,
 		CreatedBy:    author,
 		UpdatedBy:    author,
-		CreationTime: time.Now(),
-		UpdateTime:   time.Now(),
-	})
-	return nil
+		CreationTime: time.Now().Unix(),
+		UpdateTime:   time.Now().Unix(),
+	}, nil
 }
 
-// UpdateMeta updated the meta information of an object
-func (p *MetaManager) UpdateMeta(author string, identifiable Identifiable) {
-	identity := identifiable.GetIdentity()
+// UpdateMeta updated the meta information
+func (p *MetaManager) UpdateMeta(author string, identity *metadatav1.Identity) {
 	identity.UpdatedBy = author
-	identity.UpdateTime = time.Now()
+	identity.UpdateTime = time.Now().Unix()
 }
