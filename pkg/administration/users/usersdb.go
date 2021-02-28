@@ -17,6 +17,12 @@ var getUserPasswordSQL string
 //go:embed sql/postgress/insertUser.sql
 var insertUserSQL string
 
+//go:embed sql/postgress/create_users_table.sql
+var initUserTableSQL string
+
+//go:embed sql/postgress/create_session_table.sql
+var initSessionTableSQL string
+
 // UserDB encapsulates user queries
 type UserDB interface {
 	GetUser(ctx context.Context, username string) (*User, error)
@@ -62,6 +68,14 @@ func (u *userDB) CreateUser(ctx context.Context, user *User) error {
 }
 
 // NewUserDB creates a wrapper around the queries used to perform user operations
-func NewUserDB(db *sql.DB) UserDB {
-	return &userDB{db}
+func NewUserDB(db *sql.DB) (UserDB, error) {
+	_, err := db.ExecContext(context.Background(), initUserTableSQL)
+	if err != nil {
+		return nil, err
+	}
+	_, err = db.ExecContext(context.Background(), initSessionTableSQL)
+	if err != nil {
+		return nil, err
+	}
+	return &userDB{db}, nil
 }

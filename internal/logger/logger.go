@@ -26,7 +26,7 @@ func New(app info.App, instance info.Instance, debug bool) (Logger, func() error
 	initFields := map[string]interface{}{
 		"app":      app.Name,
 		"version":  app.Version,
-		"instance": instance.Name,
+		"instance": instance.Hostname,
 	}
 	level := zapcore.InfoLevel
 	if debug {

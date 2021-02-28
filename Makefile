@@ -11,16 +11,19 @@ ADMIN_DB_CONF_FILE?=admindb.json
 TEST_DB_CONF_FILE?=testdb.json
 API_CONF_FILE?=apiconfig.json
 
+VERSION ?= $(shell git describe --tags --dirty --always)
+BUILD_DATE ?= $(shell date +%FT%T%z)
+COMMIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 
-ifeq ($(VERSION),)
-	VERSION:=$(shell git describe --tags --dirty --always)
-endif
+LDFLAGS += -X 'github.com/curious-kitten/scratch-post/internal/info.version=${VERSION}'
+LDFLAGS += -X 'github.com/curious-kitten/scratch-post/internal/info.commitHash=${COMMIT_HASH}'
+LDFLAGS += -X 'github.com/curious-kitten/scratch-post/internal/info.buildDate=${BUILD_DATE}'
 
 
 all: install-go-tools lint run-tests build
 	
 build-app: lint
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -v -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
 
 test:
 	go test -v -coverprofile=coverage.out ./...
