@@ -14,11 +14,13 @@ import (
 
 //go:generate mockgen -source ./projects.go -destination mocks/projects.go
 
+// MetaHandler handles metadata information
 type MetaHandler interface {
 	NewMeta(author string, objType string) (*metadatav1.Identity, error)
 	UpdateMeta(author string, identity *metadatav1.Identity)
 }
 
+// Adder is used to add items to the store
 type Adder interface {
 	AddOne(ctx context.Context, item interface{}) error
 }
@@ -34,10 +36,12 @@ type Deleter interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// Updater is used to replace information into the Data Base
 type Updater interface {
 	Update(ctx context.Context, id string, item interface{}) error
 }
 
+// ReaderUpdater is used to read and update objects in the Data Base
 type ReaderUpdater interface {
 	Getter
 	Updater
