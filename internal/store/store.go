@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -58,8 +59,39 @@ func (d *Data) AddOne(ctx context.Context, data interface{}) error {
 }
 
 // GetAll returns all the items from a collection
-func (d *Data) GetAll(ctx context.Context, items interface{}) error {
-	cursor, err := d.coll.Find(ctx, bson.M{})
+func (d *Data) GetAll(ctx context.Context, items interface{}, filterMap map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) error {
+	opts := options.Find()
+	filter := bson.M{}
+	filterBy := generateFilter(filterMap)
+	if sortBy != "" {
+		srt := 1
+		if reverse {
+			srt = -1
+		}
+		opts.SetSort(bson.D{{Key: sortBy, Value: srt}})
+		if previousLastValue != "" {
+			if intVal, err := strconv.Atoi(previousLastValue); err == nil {
+				if reverse {
+					filterBy = append(filterBy, bson.M{sortBy: bson.M{"$lt": intVal}})
+				} else {
+					filterBy = append(filterBy, bson.M{sortBy: bson.M{"$gt": intVal}})
+				}
+			} else {
+				if reverse {
+					filterBy = append(filterBy, bson.M{sortBy: bson.M{"$lt": previousLastValue}})
+				} else {
+					filterBy = append(filterBy, bson.M{sortBy: bson.M{"$gt": previousLastValue}})
+				}
+			}
+		}
+	}
+	if count > 0 {
+		opts.SetLimit(int64(count))
+	}
+	if len(filterBy) != 0 {
+		filter = bson.M{"$and": filterBy}
+	}
+	cursor, err := d.coll.Find(ctx, filter, opts)
 	if err != nil {
 		return err
 	}
@@ -109,4 +141,23 @@ func IsDuplicateError(err error) bool {
 		}
 	}
 	return false
+}
+
+func generateFilter(filter map[string][]string) []bson.M {
+	m := []bson.M{}
+	if len(filter) == 0 {
+		return m
+	}
+	for k, values := range filter {
+		if len(values) == 1 {
+			m = append(m, bson.M{k: values[0]})
+			continue
+		}
+		orValues := []bson.M{}
+		for _, v := range values {
+			orValues = append(orValues, bson.M{k: v})
+		}
+		m = append(m, bson.M{"$or": orValues})
+	}
+	return m
 }

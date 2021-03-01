@@ -33,3 +33,9 @@ jobs:
       - name: Unit Tests
         run: |
           make test
+
+      - name: Annotate tests
+        if: always()
+        uses: guyarb/golang-test-annoations@v0.3.0
+        with:
+          test-results: unit-test.json

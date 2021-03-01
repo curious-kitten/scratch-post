@@ -20,7 +20,11 @@ import (
 )
 
 var (
-	identity = metadata.Identity{
+	sortBy            = ""
+	reverse           = false
+	count             = 1000
+	previousLastValue = ""
+	identity          = metadata.Identity{
 		Id:           "aabbccddee",
 		Type:         "testplan",
 		Version:      1,
@@ -187,11 +191,11 @@ func TestList(t *testing.T) {
 	mockGetter := mocktestplans.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		GetAll(ctx, matchers.OfType(&[]testplan.TestPlan{})).
+		GetAll(ctx, matchers.OfType(&[]testplan.TestPlan{}), map[string][]string{}, sortBy, reverse, count, previousLastValue).
 		Return(nil)
 
 	lister := testplans.List(mockGetter)
-	_, err := lister(ctx)
+	_, err := lister(ctx, map[string][]string{}, sortBy, reverse, count, previousLastValue)
 	g.Expect(err).ShouldNot(HaveOccurred(), "expected error did not occur")
 }
 
@@ -203,11 +207,11 @@ func TestList_RetrieveError(t *testing.T) {
 	mockGetter := mocktestplans.NewMockGetter(ctrl)
 	mockGetter.
 		EXPECT().
-		GetAll(ctx, matchers.OfType(&[]testplan.TestPlan{})).
+		GetAll(ctx, matchers.OfType(&[]testplan.TestPlan{}), map[string][]string{}, sortBy, reverse, count, previousLastValue).
 		Return(fmt.Errorf("expected error"))
 
 	lister := testplans.List(mockGetter)
-	_, err := lister(ctx)
+	_, err := lister(ctx, map[string][]string{}, sortBy, reverse, count, previousLastValue)
 	g.Expect(err).Should(HaveOccurred(), "expected error did not occur")
 }
 

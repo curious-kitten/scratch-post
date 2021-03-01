@@ -61,6 +61,7 @@ func Logging(logger logger) func(http.Handler) http.Handler {
 				"status", wrapped.Status(),
 				"method", r.Method,
 				"path", r.URL.EscapedPath(),
+				"query", r.URL.Query(),
 			)
 		}
 
