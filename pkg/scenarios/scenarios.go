@@ -32,7 +32,7 @@ type Adder interface {
 // Getter is used to retrieve items from the store
 type Getter interface {
 	Get(ctx context.Context, id string, item interface{}) error
-	GetAll(ctx context.Context, items interface{}) error
+	GetAll(ctx context.Context, items interface{}, filterMap map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) error
 }
 
 // Deleter deletes an entry from the collection
@@ -79,15 +79,14 @@ func New(meta MetaHandler, collection Adder, getProject projectRetriever) func(c
 }
 
 // List returns a function used to return the scenarios
-func List(collection Getter) func(ctx context.Context) ([]interface{}, error) {
-	return func(ctx context.Context) ([]interface{}, error) {
+func List(collection Getter) func(ctx context.Context, filter map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) ([]interface{}, error) {
+	return func(ctx context.Context, filter map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) ([]interface{}, error) {
 		scenarioList := []scenariov1.Scenario{}
-		err := collection.GetAll(ctx, &scenarioList)
+		err := collection.GetAll(ctx, &scenarioList, filter, sortBy, reverse, count, previousLastValue)
 		if err != nil {
 			return nil, err
 		}
 		items := make([]interface{}, len(scenarioList))
-		fmt.Println(len(items))
 		for i := range scenarioList {
 			items[i] = proto.Clone(&scenarioList[i]).(*scenariov1.Scenario)
 		}
@@ -146,3 +145,7 @@ func Update(meta MetaHandler, collection ReaderUpdater, getProject projectRetrie
 		return scenario, nil
 	}
 }
+
+// func mangeFilters(filters map[string][]string) {
+
+// }

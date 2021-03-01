@@ -87,17 +87,17 @@ func (mr *MockGetterMockRecorder) Get(ctx, id, item interface{}) *gomock.Call {
 }
 
 // GetAll mocks base method
-func (m *MockGetter) GetAll(ctx context.Context, items interface{}) error {
+func (m *MockGetter) GetAll(ctx context.Context, items interface{}, filterMap map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", ctx, items)
+	ret := m.ctrl.Call(m, "GetAll", ctx, items, filterMap, sortBy, reverse, count, previousLastValue)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // GetAll indicates an expected call of GetAll
-func (mr *MockGetterMockRecorder) GetAll(ctx, items interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetAll(ctx, items, filterMap, sortBy, reverse, count, previousLastValue interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockGetter)(nil).GetAll), ctx, items)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockGetter)(nil).GetAll), ctx, items, filterMap, sortBy, reverse, count, previousLastValue)
 }
 
 // MockMetaHandler is a mock of MetaHandler interface
@@ -225,17 +225,17 @@ func (mr *MockReaderUpdaterMockRecorder) Get(ctx, id, item interface{}) *gomock.
 }
 
 // GetAll mocks base method
-func (m *MockReaderUpdater) GetAll(ctx context.Context, items interface{}) error {
+func (m *MockReaderUpdater) GetAll(ctx context.Context, items interface{}, filterMap map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", ctx, items)
+	ret := m.ctrl.Call(m, "GetAll", ctx, items, filterMap, sortBy, reverse, count, previousLastValue)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // GetAll indicates an expected call of GetAll
-func (mr *MockReaderUpdaterMockRecorder) GetAll(ctx, items interface{}) *gomock.Call {
+func (mr *MockReaderUpdaterMockRecorder) GetAll(ctx, items, filterMap, sortBy, reverse, count, previousLastValue interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockReaderUpdater)(nil).GetAll), ctx, items)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockReaderUpdater)(nil).GetAll), ctx, items, filterMap, sortBy, reverse, count, previousLastValue)
 }
 
 // Update mocks base method

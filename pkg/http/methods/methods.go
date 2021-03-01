@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,7 +18,7 @@ import (
 )
 
 type create func(ctx context.Context, author string, body io.Reader) (interface{}, error)
-type list func(ctx context.Context) ([]interface{}, error)
+type list func(ctx context.Context, filter map[string][]string, sortBy string, reverse bool, count int, previousLastValue string) ([]interface{}, error)
 type get func(ctx context.Context, id string) (interface{}, error)
 type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
 type deleteItem func(ctx context.Context, id string) error
@@ -47,19 +49,43 @@ func Post(ctx context.Context, createFunc create, r *mux.Router, log logger.Logg
 // List reponds to a HTTP Get request for a collection
 func List(ctx context.Context, listFunc list, r *mux.Router, log logger.Logger) {
 	l := func(w http.ResponseWriter, r *http.Request) {
+		var err error
 		toctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
-		items, err := listFunc(toctx)
+		queries := r.URL.Query()
+		sortBy := ""
+		reverse := false
+		lastFoundValue := ""
+		if sorting := queries.Get("sortBy"); sorting != "" {
+			queries.Del("sortBy")
+			sortValues := strings.Split(sorting, ":")
+			sortBy = sortValues[0]
+			if len(sortValues) == 2 {
+				switch strings.ToLower(sortValues[1]) {
+				case "asc":
+					reverse = false
+				case "desc":
+					reverse = true
+				}
+			}
+			if val := queries.Get("lastValue"); val != "" {
+				lastFoundValue = val
+				queries.Del("lastValue")
+			}
+		}
+		count := 0
+		if cnt := queries.Get("count"); cnt != "" {
+			count, _ = strconv.Atoi(cnt)
+			queries.Del("count")
+		}
+		items, err := listFunc(toctx, queries, sortBy, reverse, count, lastFoundValue)
 		if err != nil {
 			helpers.FormatError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		itemList := &ItemList{
-			Count:      len(items),
-			TotalCount: len(items),
-			StartIndex: 0,
-			EndIndex:   len(items) - 1,
-			Items:      items,
+			Count: len(items),
+			Items: items,
 		}
 		helpers.FormatResponse(w, itemList, http.StatusOK)
 	}
@@ -70,11 +96,8 @@ func List(ctx context.Context, listFunc list, r *mux.Router, log logger.Logger) 
 
 // ItemList formats the collection get response to a list
 type ItemList struct {
-	Count      int           `json:"count"`
-	TotalCount int           `json:"totalCount"`
-	StartIndex int           `json:"startIndex"`
-	EndIndex   int           `json:"endIndex"`
-	Items      []interface{} `json:"items"`
+	Count int           `json:"count"`
+	Items []interface{} `json:"items"`
 }
 
 // Get returns a single instance of an item based on the ID in the path
