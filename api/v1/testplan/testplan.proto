@@ -7,7 +7,10 @@ import "metadata/metadata.proto";
 
 message TestPlan {
     .metadata.scratchpost.curiouskitten.Identity  identity = 1;
+    // ID of the project that owns the scenario. MANDATORY
     string projectId = 2;
+    // Used for unique identification. It should be a brief description of what you are testing. MANDATORY
     string name = 3;
+    // Description is used to add detailed information
     string description = 4;
 }

@@ -3,31 +3,57 @@
 
 ## Table of Contents
 
-- [project.proto](#project.proto)
-    - [Project](#project.scratchpost.curiouskitten.Project)
+- [scenario.proto](#scenario.proto)
+    - [Scenario](#scenario.scratchpost.curiouskitten.Scenario)
+    - [Step](#scenario.scratchpost.curiouskitten.Step)
   
 - [Scalar Value Types](#scalar-value-types)
 
 
 
-<a name="project.proto"></a>
+<a name="scenario.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## project.proto
+## scenario.proto
 
 
 
-<a name="project.scratchpost.curiouskitten.Project"></a>
+<a name="scenario.scratchpost.curiouskitten.Scenario"></a>
 
-### Project
-
+### Scenario
+A user defined test to validate a functionality
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | identity | [metadata.scratchpost.curiouskitten.Identity](#metadata.scratchpost.curiouskitten.Identity) |  |  |
-| name | [string](#string) |  |  |
-| description | [string](#string) |  |  |
+| projectId | [string](#string) |  | ID of the project that owns the scenario. MANDATORY |
+| name | [string](#string) |  | Used for unique identification. It should be a brief description of what you are testing. MANDATORY |
+| description | [string](#string) |  | Description is used to add detailed information |
+| prerequisites | [string](#string) |  | Prerequisites is used to define what you expect to already be done before testing |
+| steps | [Step](#scenario.scratchpost.curiouskitten.Step) | repeated | A list of actions to be taken in order to verify if the functionality works as expected |
+| issues | [metadata.scratchpost.curiouskitten.LinkedIssue](#metadata.scratchpost.curiouskitten.LinkedIssue) | repeated |  |
+| labels | [string](#string) | repeated | Labels are used to help connect different items toghether |
+| automated | [bool](#bool) |  | Whether the test has been automated or not |
+
+
+
+
+
+
+<a name="scenario.scratchpost.curiouskitten.Step"></a>
+
+### Step
+Represents a step that has to be completed in order to complete the test
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| position | [int32](#int32) |  | Used to order step execution |
+| name | [string](#string) |  | Name of the step |
+| description | [string](#string) |  | Describe what the step intention is |
+| action | [string](#string) |  | Describe what needs to be done in order to perform the step |
+| expectedOutcome | [string](#string) |  | Describe what you expect the resoult of the action to be |
 
 
 

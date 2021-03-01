@@ -63,14 +63,14 @@ func New(meta MetaHandler, collection Adder, getProject getItem, getScenario get
 		_, err := getTestPlan(ctx, execution.TestPlanId)
 		if err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("scenario with the provided ID does not exist")
+				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
 			}
 			return nil, err
 		}
 		raw, err := getScenario(ctx, execution.ScenarioId)
 		if err != nil {
 			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
+				return nil, errors.NewValidationError("scenario with the provided ID does not exist")
 			}
 			return nil, err
 		}

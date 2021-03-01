@@ -3,56 +3,32 @@
 
 ## Table of Contents
 
-- [scenario.proto](#scenario.proto)
-    - [Scenario](#scenario.scratchpost.curiouskitten.Scenario)
-    - [Step](#scenario.scratchpost.curiouskitten.Step)
+- [testplan.proto](#testplan.proto)
+    - [TestPlan](#testplan.scratchpost.curiouskitten.TestPlan)
   
 - [Scalar Value Types](#scalar-value-types)
 
 
 
-<a name="scenario.proto"></a>
+<a name="testplan.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## scenario.proto
+## testplan.proto
 
 
 
-<a name="scenario.scratchpost.curiouskitten.Scenario"></a>
+<a name="testplan.scratchpost.curiouskitten.TestPlan"></a>
 
-### Scenario
+### TestPlan
 
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | identity | [metadata.scratchpost.curiouskitten.Identity](#metadata.scratchpost.curiouskitten.Identity) |  |  |
-| projectId | [string](#string) |  |  |
-| name | [string](#string) |  |  |
-| description | [string](#string) |  |  |
-| prerequisites | [string](#string) |  |  |
-| steps | [Step](#scenario.scratchpost.curiouskitten.Step) | repeated |  |
-| issues | [metadata.scratchpost.curiouskitten.LinkedIssue](#metadata.scratchpost.curiouskitten.LinkedIssue) | repeated |  |
-| labels | [string](#string) | repeated |  |
-
-
-
-
-
-
-<a name="scenario.scratchpost.curiouskitten.Step"></a>
-
-### Step
-Represents a step that has to be completed in order to complete the test
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| position | [int32](#int32) |  | Used to order step execution |
-| name | [string](#string) |  | Name of the step |
-| description | [string](#string) |  | Describe what the step intention is |
-| action | [string](#string) |  | Describe what needs to be done in order to perform the step |
-| expectedOutcome | [string](#string) |  | Describe what you expect the resoult of the action to be |
+| projectId | [string](#string) |  | ID of the project that owns the scenario. MANDATORY |
+| name | [string](#string) |  | Used for unique identification. It should be a brief description of what you are testing. MANDATORY |
+| description | [string](#string) |  | Description is used to add detailed information |
 
 
 

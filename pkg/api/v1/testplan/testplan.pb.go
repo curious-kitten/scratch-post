@@ -32,10 +32,13 @@ type TestPlan struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Identity    *metadata.Identity `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	ProjectId   string             `protobuf:"bytes,2,opt,name=projectId,proto3" json:"projectId,omitempty"`
-	Name        string             `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description string             `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Identity *metadata.Identity `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	// ID of the project that owns the scenario. MANDATORY
+	ProjectId string `protobuf:"bytes,2,opt,name=projectId,proto3" json:"projectId,omitempty"`
+	// Used for unique identification. It should be a brief description of what you are testing. MANDATORY
+	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// Description is used to add detailed information
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 }
 
 func (x *TestPlan) Reset() {
