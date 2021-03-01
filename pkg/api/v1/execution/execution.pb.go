@@ -157,8 +157,10 @@ func (x *StepExecution) GetIssues() []*metadata.LinkedIssue {
 	return nil
 }
 
-// Represents an execution of a scenario. It associates with a Scenario through the `scenarioId`.
-// It needs an association with a project and a test plan. This is done through the `projectId` and `testPlanId`
+//
+//Represents an execution of a scenario. It associates with a Scenario through the `scenarioId`.
+//It needs an association with a project and a test plan. This is done through the `projectId` and `testPlanId`
+//In order to create a new execution, you need to pass in the provide the `projectId`, the `testPlanId` and the `scenarioId`
 type Execution struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -167,16 +169,24 @@ type Execution struct {
 	// Identification for the execution
 	Identity *metadata.Identity `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	// ID of the associated project
-	ProjectId     string                  `protobuf:"bytes,2,opt,name=projectId,proto3" json:"projectId,omitempty"`
-	ScenarioId    string                  `protobuf:"bytes,3,opt,name=scenarioId,proto3" json:"scenarioId,omitempty"`
-	TestPlanId    string                  `protobuf:"bytes,4,opt,name=testPlanId,proto3" json:"testPlanId,omitempty"`
-	Status        Status                  `protobuf:"varint,5,opt,name=status,proto3,enum=metadata.scratchpost.curiouskitten.Status" json:"status,omitempty"`
-	Name          string                  `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                  `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
-	Prerequisites string                  `protobuf:"bytes,8,opt,name=prerequisites,proto3" json:"prerequisites,omitempty"`
-	Steps         []*StepExecution        `protobuf:"bytes,9,rep,name=steps,proto3" json:"steps,omitempty"`
-	Issues        []*metadata.LinkedIssue `protobuf:"bytes,10,rep,name=issues,proto3" json:"issues,omitempty"`
-	Labels        []string                `protobuf:"bytes,11,rep,name=labels,proto3" json:"labels,omitempty"`
+	ProjectId string `protobuf:"bytes,2,opt,name=projectId,proto3" json:"projectId,omitempty"`
+	// ID of the scenario this execution is part of
+	ScenarioId string `protobuf:"bytes,3,opt,name=scenarioId,proto3" json:"scenarioId,omitempty"`
+	// The test plan this execution is part of
+	TestPlanId string `protobuf:"bytes,4,opt,name=testPlanId,proto3" json:"testPlanId,omitempty"`
+	// Status of the execution, defaults to PENDING
+	Status Status `protobuf:"varint,5,opt,name=status,proto3,enum=metadata.scratchpost.curiouskitten.Status" json:"status,omitempty"`
+	// Name of the associated scenario
+	Name string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	// Description of the associated scenario
+	Description string `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	// Prerequisites of the associated scenario
+	Prerequisites string `protobuf:"bytes,8,opt,name=prerequisites,proto3" json:"prerequisites,omitempty"`
+	// Steps in the associated scenario with aditional execution information
+	Steps  []*StepExecution        `protobuf:"bytes,9,rep,name=steps,proto3" json:"steps,omitempty"`
+	Issues []*metadata.LinkedIssue `protobuf:"bytes,10,rep,name=issues,proto3" json:"issues,omitempty"`
+	// Labels are used to help connect different items toghether
+	Labels []string `protobuf:"bytes,11,rep,name=labels,proto3" json:"labels,omitempty"`
 }
 
 func (x *Execution) Reset() {

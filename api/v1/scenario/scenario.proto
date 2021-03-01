@@ -19,13 +19,24 @@ message Step {
     string expectedOutcome = 5;
 }
 
+/*
+    A user defined test to validate a functionality
+*/
 message Scenario {
     .metadata.scratchpost.curiouskitten.Identity  identity = 1;
+    // ID of the project that owns the scenario. MANDATORY
     string projectId = 2;
+    // Used for unique identification. It should be a brief description of what you are testing. MANDATORY
     string name = 3;
+    // Description is used to add detailed information
     string description = 4;
+    // Prerequisites is used to define what you expect to already be done before testing
     string prerequisites = 5;
+    // A list of actions to be taken in order to verify if the functionality works as expected
     repeated Step steps = 6;
     repeated .metadata.scratchpost.curiouskitten.LinkedIssue issues = 7;
+    // Labels are used to help connect different items toghether
     repeated string labels = 8;
+    // Whether the test has been automated or not
+    bool automated = 9;
 }

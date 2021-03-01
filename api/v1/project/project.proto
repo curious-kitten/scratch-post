@@ -7,6 +7,8 @@ import "metadata/metadata.proto";
 
 message Project {
     .metadata.scratchpost.curiouskitten.Identity  identity = 1;
+    // Name of the project
     string name = 3;
+    // A description of the project
     string description = 4;
 }

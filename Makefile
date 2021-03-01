@@ -61,8 +61,8 @@ fmt:
 	gofmt -s -w .
 
 generate-proto:
-	protoc -I=api/v1/metadata --go_out=pkg/api/v1/metadata/  --go_opt=paths=source_relative --doc_out=./docs --doc_opt=markdown,metadata.md api/v1/metadata/*.proto
-	protoc --proto_path=api/v1/scenario --proto_path=api/v1/  --go_out=pkg/api/v1/scenario/  --go_opt=paths=source_relative --doc_out=./docs --doc_opt=markdown,scenario.md api/v1/scenario/*.proto
-	protoc --proto_path=api/v1/testplan --proto_path=api/v1/  --go_out=pkg/api/v1/testplan/  --go_opt=paths=source_relative --doc_out=./docs --doc_opt=markdown,testplan.md api/v1/testplan/*.proto
-	protoc --proto_path=api/v1/project --proto_path=api/v1/  --go_out=pkg/api/v1/project/  --go_opt=paths=source_relative --doc_out=./docs --doc_opt=markdown,project.md api/v1/project/*.proto
-	protoc --proto_path=api/v1/execution --proto_path=api/v1/  --go_out=pkg/api/v1/execution/  --go_opt=paths=source_relative --doc_out=./docs --doc_opt=markdown,execution.md api/v1/execution/*.proto
+	protoc -I=api/v1/metadata --go_out=pkg/api/v1/metadata/  --go_opt=paths=source_relative --doc_out=./docs/proto --doc_opt=markdown,metadata.md api/v1/metadata/*.proto
+	protoc --proto_path=api/v1/scenario --proto_path=api/v1/  --go_out=pkg/api/v1/scenario/  --go_opt=paths=source_relative --doc_out=./docs/proto --doc_opt=markdown,scenario.md api/v1/scenario/*.proto
+	protoc --proto_path=api/v1/testplan --proto_path=api/v1/  --go_out=pkg/api/v1/testplan/  --go_opt=paths=source_relative --doc_out=./docs/proto --doc_opt=markdown,testplan.md api/v1/testplan/*.proto
+	protoc --proto_path=api/v1/project --proto_path=api/v1/  --go_out=pkg/api/v1/project/  --go_opt=paths=source_relative --doc_out=./docs/proto --doc_opt=markdown,project.md api/v1/project/*.proto
+	protoc --proto_path=api/v1/execution --proto_path=api/v1/  --go_out=pkg/api/v1/execution/  --go_opt=paths=source_relative --doc_out=./docs/proto --doc_opt=markdown,execution.md api/v1/execution/*.proto

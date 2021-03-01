@@ -3,38 +3,81 @@
 
 ## Table of Contents
 
-- [testplan.proto](#testplan.proto)
-    - [TestPlan](#testplan.scratchpost.curiouskitten.TestPlan)
+- [execution.proto](#execution.proto)
+    - [Execution](#metadata.scratchpost.curiouskitten.Execution)
+    - [StepExecution](#metadata.scratchpost.curiouskitten.StepExecution)
+  
+    - [Status](#metadata.scratchpost.curiouskitten.Status)
   
 - [Scalar Value Types](#scalar-value-types)
 
 
 
-<a name="testplan.proto"></a>
+<a name="execution.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## testplan.proto
+## execution.proto
 
 
 
-<a name="testplan.scratchpost.curiouskitten.TestPlan"></a>
+<a name="metadata.scratchpost.curiouskitten.Execution"></a>
 
-### TestPlan
-
+### Execution
+Represents an execution of a scenario. It associates with a Scenario through the `scenarioId`. 
+It needs an association with a project and a test plan. This is done through the `projectId` and `testPlanId`
+In order to create a new execution, you need to pass in the provide the `projectId`, the `testPlanId` and the `scenarioId`
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| identity | [metadata.scratchpost.curiouskitten.Identity](#metadata.scratchpost.curiouskitten.Identity) |  |  |
-| projectId | [string](#string) |  |  |
-| name | [string](#string) |  |  |
-| description | [string](#string) |  |  |
+| identity | [Identity](#metadata.scratchpost.curiouskitten.Identity) |  | Identification for the execution |
+| projectId | [string](#string) |  | ID of the associated project |
+| scenarioId | [string](#string) |  | ID of the scenario this execution is part of |
+| testPlanId | [string](#string) |  | The test plan this execution is part of |
+| status | [Status](#metadata.scratchpost.curiouskitten.Status) |  | Status of the execution, defaults to PENDING |
+| name | [string](#string) |  | Name of the associated scenario |
+| description | [string](#string) |  | Description of the associated scenario |
+| prerequisites | [string](#string) |  | Prerequisites of the associated scenario |
+| steps | [StepExecution](#metadata.scratchpost.curiouskitten.StepExecution) | repeated | Steps in the associated scenario with aditional execution information |
+| issues | [LinkedIssue](#metadata.scratchpost.curiouskitten.LinkedIssue) | repeated |  |
+| labels | [string](#string) | repeated | Labels are used to help connect different items toghether |
+
+
+
+
+
+
+<a name="metadata.scratchpost.curiouskitten.StepExecution"></a>
+
+### StepExecution
+Represents a step that has to be completed in order to complete the test
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| definition | [scenario.scratchpost.curiouskitten.Step](#scenario.scratchpost.curiouskitten.Step) |  | Definition of the step to be executed |
+| status | [Status](#metadata.scratchpost.curiouskitten.Status) |  | Status of the execution. Defaults to Pending |
+| ActualResult | [string](#string) |  | Details about the exectuion results |
+| issues | [LinkedIssue](#metadata.scratchpost.curiouskitten.LinkedIssue) | repeated | Issues associated with the step execution |
 
 
 
 
 
  
+
+
+<a name="metadata.scratchpost.curiouskitten.Status"></a>
+
+### Status
+Status of an execution
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| Pending | 0 | an execution that has not been completed |
+| Fail | 1 | an execution result did not match the expected |
+| Pass | 2 | an execution result matches the expected |
+
 
  
 

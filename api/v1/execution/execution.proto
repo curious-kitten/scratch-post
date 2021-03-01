@@ -18,22 +18,32 @@ message StepExecution {
     repeated .metadata.scratchpost.curiouskitten.LinkedIssue issues = 10;
 
 }
-
-// Represents an execution of a scenario. It associates with a Scenario through the `scenarioId`. 
-// It needs an association with a project and a test plan. This is done through the `projectId` and `testPlanId`
+/*
+ Represents an execution of a scenario. It associates with a Scenario through the `scenarioId`. 
+ It needs an association with a project and a test plan. This is done through the `projectId` and `testPlanId`
+ In order to create a new execution, you need to pass in the provide the `projectId`, the `testPlanId` and the `scenarioId`
+*/
 message Execution {
     // Identification for the execution
     .metadata.scratchpost.curiouskitten.Identity  identity = 1;
     // ID of the associated project
     string projectId = 2;
+    // ID of the scenario this execution is part of
     string scenarioId = 3;
+    // The test plan this execution is part of
     string testPlanId = 4;
+    // Status of the execution, defaults to PENDING
     Status status = 5;
+    // Name of the associated scenario
     string name = 6;
+    // Description of the associated scenario
     string description = 7;
+    // Prerequisites of the associated scenario
     string prerequisites = 8;
+    // Steps in the associated scenario with aditional execution information
     repeated StepExecution steps = 9;
     repeated .metadata.scratchpost.curiouskitten.LinkedIssue issues = 10;
+    // Labels are used to help connect different items toghether 
     repeated string labels = 11;
 }
 
