@@ -17,6 +17,6 @@
 
 unit-test.json
 
-build/_bin/
+*_bin/
 
 *db.json

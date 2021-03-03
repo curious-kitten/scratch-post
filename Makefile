@@ -1,10 +1,10 @@
 SHELL:=/bin/bash
 TOP_DIR:=$(notdir $(CURDIR))
+APP:=scratch-post
 BUILD_DIR:=build
-BIN_DIR:=$(BUILD_DIR)/_bin
+BIN_DIR:=$(BUILD_DIR)/$(APP)/_bin
 
 DOCKER_REPO?="matache91mh"
-APP:=scratch-post
 IMAGE?=$(DOCKER_REPO)/$(APP)
 
 ADMIN_DB_CONF_FILE?=admindb.json
@@ -44,13 +44,11 @@ run-jwt: build-app
 	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE) --isJWT
 
 run: build-app
-	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
+	$(BIN_DIR)/$(APP) start --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
 
 
 app-image: build-app
-	cp $(BIN_DIR)/$(APP) $(BUILD_DIR)/$(APP)/ && \
-	docker build -t $(IMAGE):$(VERSION) $(BUILD_DIR)/$(APP)/ && \
-	rm  $(BUILD_DIR)/$(APP)/$(APP) && 
+	docker build -t $(IMAGE):$(VERSION) $(BUILD_DIR)/$(APP)
 
 push-images: app-image
 	docker push $(IMAGE):$(VERSION)

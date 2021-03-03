@@ -16,6 +16,7 @@ require (
 	github.com/onsi/gomega v1.10.4
 	github.com/segmentio/ksuid v1.0.3
 	github.com/sony/sonyflake v1.0.0
+	github.com/spf13/cobra v0.0.3
 	go.mongodb.org/mongo-driver v1.4.4
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.10.0

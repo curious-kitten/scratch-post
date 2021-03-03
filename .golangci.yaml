@@ -12,7 +12,6 @@ linters:
     - goimports
     - golint
     - goprintffuncname
-    - gosec
     - maligned
     - misspell
     - nakedret

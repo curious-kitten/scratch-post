@@ -1,15 +1,15 @@
 {
-    "rootPrefix": "/api/v1",
-    "port": "9090",
-    "endpoints": {
-        "probes": "/probes",
-        "projects": "/projects",
-        "scenarios": "/scenarios",
-        "testplans": "/testplans",
-        "executions": "/executions",
-        "admin": {
-            "prefix": "/admin",
-            "users": "/users"
-        }
+  "rootPrefix": "/api/v1",
+  "port": "9090",
+  "endpoints": {
+    "probes": "/probes",
+    "projects": "/projects",
+    "scenarios": "/scenarios",
+    "testplans": "/testplans",
+    "executions": "/executions",
+    "admin": {
+      "prefix": "/admin",
+      "users": "/users"
     }
+  }
 }
