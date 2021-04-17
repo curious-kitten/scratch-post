@@ -61,7 +61,9 @@ var Command = &cobra.Command{
 
 		log, flush, err := logger.New(app, instance, true)
 		exitOnError(log, err)
-		defer flush()
+		defer func() {
+			_ = flush()
+		}()
 
 		log.Info("Reading configurations...")
 		// Reading DB config file
