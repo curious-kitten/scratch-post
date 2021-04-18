@@ -10,9 +10,9 @@ linters:
     - gocritic
     - gofmt
     - goimports
+    - govet
     - golint
     - goprintffuncname
-    - maligned
     - misspell
     - nakedret
     - prealloc

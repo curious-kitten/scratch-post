@@ -20,9 +20,9 @@ LDFLAGS += -X 'github.com/curious-kitten/scratch-post/internal/info.commitHash=$
 LDFLAGS += -X 'github.com/curious-kitten/scratch-post/internal/info.buildDate=${BUILD_DATE}'
 
 
-all: install-go-tools lint run-tests build
+all: install-go-tools generate fmt lint test build-app
 	
-build-app: lint
+build-app:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -v -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
 
 test:
@@ -34,7 +34,8 @@ install-go-tools:
 	go install github.com/golang/mock/mockgen
 	go get golang.org/x/tools/cmd/goimports
 
-lint: fmt
+lint:
+	go vet ./...
 	golangci-lint run ./...
 
 generate: generate-proto
@@ -43,8 +44,8 @@ generate: generate-proto
 run-jwt: build-app
 	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE) --isJWT
 
-run: build-app
-	$(BIN_DIR)/$(APP) start --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
+run: 
+	GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run -ldflags="$(LDFLAGS)" ./cmd/$(APP) start --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
 
 
 app-image: build-app

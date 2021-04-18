@@ -38,7 +38,7 @@ func init() {
 var Command = &cobra.Command{
 	Use:   "api-config",
 	Short: "api-config generates JSON file for configuring the REST API",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		storeConfig := endpoints.Config{
 			RootPrefix: rootPrefix,
 			Port:       port,
@@ -56,10 +56,11 @@ var Command = &cobra.Command{
 		}
 		cfg, err := json.MarshalIndent(storeConfig, "", "  ")
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if err := ioutil.WriteFile(file, cfg, 0644); err != nil {
-			panic(err)
+			return err
 		}
+		return nil
 	},
 }

@@ -39,7 +39,7 @@ var Command = &cobra.Command{
 	- address:     the URL to connect to the instance 
 	- database:    the specific database to be used in the instance
 	- collections: a map which you can use to specify what collection each scratch-post item type can use`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		storeConfig := store.Config{
 			Address:  address,
 			DataBase: database,
@@ -52,10 +52,11 @@ var Command = &cobra.Command{
 		}
 		cfg, err := json.MarshalIndent(storeConfig, "", "  ")
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if err := ioutil.WriteFile(file, cfg, 0644); err != nil {
-			panic(err)
+			return err
 		}
+		return nil
 	},
 }
