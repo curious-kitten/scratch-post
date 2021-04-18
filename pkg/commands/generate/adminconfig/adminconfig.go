@@ -33,7 +33,7 @@ var Command = &cobra.Command{
 	This data base is used to store test information. 
 	Information provided by this config file is:
 	- address: the URL to connect to the instance`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		storeConfig := db.Config{
 			Address: address,
 			Connections: db.Connections{
@@ -44,10 +44,11 @@ var Command = &cobra.Command{
 		}
 		cfg, err := json.MarshalIndent(storeConfig, "", "  ")
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if err := ioutil.WriteFile(file, cfg, 0644); err != nil {
-			panic(err)
+			return err
 		}
+		return nil
 	},
 }

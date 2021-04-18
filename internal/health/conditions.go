@@ -1,6 +1,9 @@
 package health
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/curious-kitten/scratch-post/internal/info"
 )
 
@@ -68,19 +71,37 @@ func (c *Conditions) IsAlive() (bool, interface{}) {
 }
 
 // Check verfies if the conditions have been met and returns the status of the conditions
-func (c *Conditions) check(conditions []ConditionCheck) (bool, interface{}) {
+func (c *Conditions) check(conditionCheck []ConditionCheck) (bool, interface{}) {
 	ready := true
 	status := Status{
 		App:      c.app,
 		Status:   []Condition{},
 		Instance: c.instance,
 	}
-	for _, v := range conditions {
-		condition := v()
-		status.Status = append(status.Status, condition)
-		if !condition.Ready {
-			ready = false
-		}
+	results := make(chan Condition)
+	wg := &sync.WaitGroup{}
+	wg.Add(len(conditionCheck))
+	fmt.Println(len(conditionCheck))
+	for _, v := range conditionCheck {
+		go func(check ConditionCheck) {
+			defer wg.Done()
+			results <- check()
+		}(v)
 	}
+	wg2 := &sync.WaitGroup{}
+	wg2.Add(1)
+	go func() {
+		defer wg2.Done()
+		for cond := range results {
+			status.Status = append(status.Status, cond)
+			if !cond.Ready {
+				ready = false
+			}
+		}
+	}()
+	wg.Wait()
+	close(results)
+	wg2.Wait()
+
 	return ready, status
 }

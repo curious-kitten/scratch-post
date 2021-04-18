@@ -1,5 +1,17 @@
 package errors
 
+import (
+	"errors"
+	"fmt"
+)
+
+// Wrap adds extra information related
+func Wrap(errorContext string, err error) error {
+	return fmt.Errorf("%s : %w", errorContext, err)
+}
+
+var Unwrap = errors.Unwrap
+
 // ValidationError represents an issue with value setting on a struct
 type ValidationError struct {
 	message string

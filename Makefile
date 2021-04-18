@@ -44,8 +44,8 @@ generate: generate-proto
 run-jwt: build-app
 	$(BIN_DIR)/$(APP) --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE) --isJWT
 
-run: build-app
-	$(BIN_DIR)/$(APP) start --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
+run: 
+	GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run -ldflags="$(LDFLAGS)" ./cmd/$(APP) start --apiconfig $(API_CONF_FILE) --admindb $(ADMIN_DB_CONF_FILE) --testdb $(TEST_DB_CONF_FILE)
 
 
 app-image: build-app

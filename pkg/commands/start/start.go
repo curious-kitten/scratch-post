@@ -18,6 +18,7 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
 	"github.com/curious-kitten/scratch-post/pkg/administration/users"
+	"github.com/curious-kitten/scratch-post/pkg/errors"
 	"github.com/curious-kitten/scratch-post/pkg/executions"
 	"github.com/curious-kitten/scratch-post/pkg/http/auth"
 	"github.com/curious-kitten/scratch-post/pkg/http/endpoints"
@@ -49,7 +50,7 @@ func init() {
 var Command = &cobra.Command{
 	Use:   "start",
 	Short: "Starts the server for managing test cases",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
@@ -60,7 +61,11 @@ var Command = &cobra.Command{
 		instance := info.InstanceInfo()
 
 		log, flush, err := logger.New(app, instance, true)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not start logger", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		defer func() {
 			_ = flush()
 		}()
@@ -68,23 +73,47 @@ var Command = &cobra.Command{
 		log.Info("Reading configurations...")
 		// Reading DB config file
 		testDBConfContents, err := os.Open(testDBConfigFile)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not read test DB config", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 
 		storeCfg := &store.Config{}
 		err = decoder.Decode(storeCfg, testDBConfContents)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not decode test DB config", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 
 		adminDBConfContents, err := os.Open(adminDBConfigFile)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not read admin DB config", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		adminDBCfg := &db.Config{}
 		err = decoder.Decode(adminDBCfg, adminDBConfContents)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not decode admin DB config", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		// Reading API config file
 		apiConfContents, err := os.Open(apiConfigFile)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not read api config", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		apiCfg := &endpoints.Config{}
 		err = decoder.Decode(apiCfg, apiConfContents)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not decode endpoints", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 
 		log.Info("Starting app...")
 		r := router.New(log)
@@ -96,15 +125,46 @@ var Command = &cobra.Command{
 		meta := metadata.NewMetaManager()
 
 		sql, err := db.New(*adminDBCfg)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("DB connection error", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
+		defer func() {
+			log.Info("closing DB connection")
+			err = sql.Close()
+			if err != nil {
+				log.Error("error closing DB connection", "error", err)
+			}
+		}()
 
-		err = sql.Ping()
-		exitOnError(log, err)
+		conditions.RegisterReadynessCondition(func() health.Condition {
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			err := sql.PingContext(ctx)
+			if err != nil {
+				return health.Condition{
+					Ready:   false,
+					Message: err.Error(),
+					Name:    "sql ping",
+				}
+			}
+			return health.Condition{
+				Ready:   true,
+				Message: "Ping success",
+				Name:    "sql ping",
+			}
+
+		})
 
 		var authorizer auth.Authorizer
 		if isJWT {
 			securityKey, err := os.Open(securityFile)
-			exitOnError(log, err)
+			if err != nil {
+				err = errors.Wrap("could not open security file", err)
+				log.Errorw("fatal error during startup", "error", err)
+				return err
+			}
 			keyRetriever := &keys.Retriever{Item: securityKey}
 			authorizer = auth.NewJWTHandler(keyRetriever)
 		} else {
@@ -113,10 +173,36 @@ var Command = &cobra.Command{
 		authorizer.Cleanup(24 * time.Hour)
 
 		client, err := store.Client(ctx, storeCfg.Address)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("DB connection error", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
+
+		conditions.RegisterReadynessCondition(func() health.Condition {
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			err = client.Ping(ctx, nil)
+			if err != nil {
+				return health.Condition{
+					Ready:   false,
+					Message: err.Error(),
+					Name:    "mongo ping",
+				}
+			}
+			return health.Condition{
+				Ready:   true,
+				Message: "Ping success",
+				Name:    "mongo ping",
+			}
+		})
 
 		userDB, err := users.NewUserDB(sql)
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("DB connection error", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 
 		authEndpoints := auth.NewEndpoints(ctx, users.IsPasswordCorrect(userDB), authorizer)
 		authEndpoints.Register(versionedRouter)
@@ -132,7 +218,11 @@ var Command = &cobra.Command{
 
 		//  Projects endpoint
 		projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client, []string{"name"})
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not start collection", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		projectRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Projects).Subrouter()
 		projectRouter.Use(middleware.Authorization(authorizer))
 		methods.Post(ctx, projects.New(meta, projectsCollection), projectRouter, log)
@@ -143,7 +233,11 @@ var Command = &cobra.Command{
 
 		// Scenario endpoints
 		scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not start collection", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		scenarioRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Scenarios).Subrouter()
 		scenarioRouter.Use(middleware.Authorization(authorizer))
 		methods.Post(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
@@ -154,7 +248,11 @@ var Command = &cobra.Command{
 
 		// TestPlan endpoints
 		testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not start collection", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		testPlanRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.TestPlans).Subrouter()
 		testPlanRouter.Use(middleware.Authorization(authorizer))
 		methods.Post(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
@@ -165,7 +263,11 @@ var Command = &cobra.Command{
 
 		// Executions endpoints
 		executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
-		exitOnError(log, err)
+		if err != nil {
+			err = errors.Wrap("could not start collection", err)
+			log.Errorw("fatal error during startup", "error", err)
+			return err
+		}
 		executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
 		executionRouter.Use(middleware.Authorization(authorizer))
 		methods.Post(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
@@ -185,20 +287,18 @@ var Command = &cobra.Command{
 			}
 		}()
 		log.Infof("Server started on port %s", apiCfg.Port)
+		defer func() {
+			ctx, cancel = context.WithTimeout(ctx, time.Second*10)
+			defer cancel()
+			err = srv.Shutdown(ctx)
+			if err != nil {
+				err = errors.Wrap("shutdown issue", err)
+				log.Errorw("fatal error during startup", "error", err)
+			}
+		}()
 
 		<-c
-
 		log.Info("Shutting down...")
-		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
-		defer cancel()
-		err = srv.Shutdown(ctx)
-		exitOnError(log, err)
+		return nil
 	},
-}
-
-func exitOnError(log logger.Logger, err error) {
-	if err != nil {
-		log.Errorw("fatal error during startup", "error", err)
-		panic(err)
-	}
 }

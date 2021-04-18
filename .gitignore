@@ -20,3 +20,4 @@ unit-test.json
 *_bin/
 
 *db.json
+*.log.json
