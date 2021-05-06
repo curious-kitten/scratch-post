@@ -4,7 +4,7 @@
 # Scratch Post
 A free, open source test management platform. 
 
-Provides a [REST API](./docs/rest_api/common.md) which you can use to manage you test.
+Provides a [REST API](./docs/rest_api/common.md) which you can use to manage your tests.
 You will first need to create a `project` that will be a separated space to store tests that are related to a particular application.
 Inside a project you can define:
 - A `scenario` which is a defintion of a test case
