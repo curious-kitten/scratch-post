@@ -6,7 +6,7 @@ A free, open source test management platform.
 
 Provides a REST API where you can define:
 
- * [Projects](./docs/proto/execution.md)
+ * [Projects](./docs/proto/project.md)
  * [Scenarios](./docs/proto/scenario.md)
  * [Executions](./docs/proto/execution.md) 
  * [Test Plans](./docs/proto/testplan.md)
