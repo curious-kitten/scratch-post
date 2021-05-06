@@ -4,12 +4,12 @@
 # Scratch Post
 A free, open source test management platform. 
 
-Provides a [REST API](./docs/rest_api/common.md) where you can define:
-
- * [Projects](./docs/proto/project.md)
- * [Scenarios](./docs/proto/scenario.md)
- * [Executions](./docs/proto/execution.md) 
- * [Test Plans](./docs/proto/testplan.md)
+Provides a [REST API](./docs/rest_api/common.md) which you can use to manage you test.
+You will first need to create a `project` that will be a separated space to store tests that are related to a particular application.
+Inside a project you can define:
+- A `scenario` which is a defintion of a test case
+- A `test plan` which is used to aggregate multiple scenarios in a logical collection
+- An `execution` which is the actual result of a `scenario`, at a given point in time and as being part of a specific `test plan`
 
 # Using Scratch Post
 
@@ -125,3 +125,5 @@ Use "scratch-post generate [command] --help" for more information about a comman
     ```
 
     If you already have the config files, you can also use `make run`
+    
+    To start using the REST API refer to the [docs](./docs/rest_api/common.md)
