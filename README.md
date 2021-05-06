@@ -4,11 +4,8 @@
 # Scratch Post
 A free, open source test management platform. 
 
-You can 
+Provides a REST API where you can define:
 
-# Testing structure
-
-The test structures are:
  * [Projects](./docs/proto/execution.md)
  * [Scenarios](./docs/proto/scenario.md)
  * [Executions](./docs/proto/execution.md) 
