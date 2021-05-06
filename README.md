@@ -4,7 +4,7 @@
 # Scratch Post
 A free, open source test management platform. 
 
-Provides a REST API where you can define:
+Provides a [REST API](./docs/rest_api/common.md) where you can define:
 
  * [Projects](./docs/proto/project.md)
  * [Scenarios](./docs/proto/scenario.md)
