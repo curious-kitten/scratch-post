@@ -9,8 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
-	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
+	"github.com/curious-kitten/scratch-post/internal/http/response"
 )
 
 type checkPassword func(ctx context.Context, username, password string) error
@@ -25,10 +24,10 @@ type LoginRequest struct {
 // Validate the Login Request
 func (u *LoginRequest) Validate() error {
 	if u.Username == "" {
-		return errors.NewValidationError("username not provided")
+		return decoder.NewValidationError("username not provided")
 	}
 	if u.Password == "" {
-		return errors.NewValidationError("password not provided")
+		return decoder.NewValidationError("password not provided")
 	}
 	return nil
 }
@@ -60,20 +59,20 @@ func NewEndpoints(ctx context.Context, isPasswordCorrect checkPassword, token Au
 func (e *Endpoints) login(w http.ResponseWriter, r *http.Request) {
 	user := &LoginRequest{}
 	if err := decoder.Decode(user, r.Body); err != nil {
-		helpers.FormatError(w, err.Error(), http.StatusInternalServerError)
+		response.SendError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	toctx, cancel := context.WithTimeout(e.ctx, time.Second*10)
 	defer cancel()
 	err := e.isPasswordCorrect(toctx, user.Username, user.Password)
 	if err != nil {
-		helpers.FormatError(w, err.Error(), http.StatusInternalServerError)
+		response.SendError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	tokenString, expirationTime, err := e.token.GenerateSecurityString(user.Username)
 
 	if err != nil {
-		helpers.FormatError(w, "internal server error", http.StatusInternalServerError)
+		response.SendError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -81,18 +80,18 @@ func (e *Endpoints) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e *Endpoints) logout(w http.ResponseWriter, r *http.Request) {
-	token, err := GetAuthToken(r)
+	token, err := GetToken(r)
 	if err != nil {
 		if err == http.ErrNoCookie {
-			helpers.FormatError(w, err.Error(), http.StatusUnauthorized)
+			response.SendError(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		helpers.FormatError(w, err.Error(), http.StatusBadRequest)
+		response.SendError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	err = e.token.Invalidate(token)
 	if err != nil {
-		helpers.FormatError(w, err.Error(), http.StatusInternalServerError)
+		response.SendError(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -112,7 +111,7 @@ func SetAuthCookie(w http.ResponseWriter, tokenString string, expires time.Time)
 }
 
 // GetAuthToken extracts the auth token from a request
-func GetAuthToken(r *http.Request) (string, error) {
+func GetToken(r *http.Request) (string, error) {
 	c, err := r.Cookie(authToken)
 	if err != nil {
 		return "", err

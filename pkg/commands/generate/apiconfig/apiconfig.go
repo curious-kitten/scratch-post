@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/curious-kitten/scratch-post/pkg/http/endpoints"
+	"github.com/curious-kitten/scratch-post/internal/http/endpoints"
 )
 
 var rootPrefix string

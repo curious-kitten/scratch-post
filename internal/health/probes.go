@@ -1,11 +1,11 @@
-package probes
+package health
 
 import (
 	"net/http"
 
 	"github.com/gorilla/mux"
 
-	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
+	"github.com/curious-kitten/scratch-post/internal/http/response"
 )
 
 type check func() (bool, interface{})
@@ -25,9 +25,9 @@ func conditionHandler(c check) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ready, status := c()
 		if ready {
-			helpers.FormatResponse(w, status, http.StatusOK)
+			response.Send(w, status, http.StatusOK)
 		} else {
-			helpers.FormatResponse(w, status, http.StatusInternalServerError)
+			response.Send(w, status, http.StatusInternalServerError)
 		}
 	}
 }

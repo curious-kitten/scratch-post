@@ -1,5 +1,4 @@
 SHELL:=/bin/bash
-TOP_DIR:=$(notdir $(CURDIR))
 APP:=scratch-post
 BUILD_DIR:=build
 BIN_DIR:=$(BUILD_DIR)/$(APP)/_bin
@@ -25,9 +24,12 @@ all: install-go-tools generate fmt lint test build-app
 build-app:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -v -o $(BIN_DIR)/$(APP) ./cmd/$(APP)
 
-test:
+test-ci:
 	go test -v  -json -coverprofile=coverage.out ./... > unit-test.json
 	go tool cover -func=coverage.out
+
+test:
+	go test ./...
 
 install-go-tools:
 	GO111MODULE=on CGO_ENABLED=0 go get github.com/golangci/golangci-lint/cmd/golangci-lint

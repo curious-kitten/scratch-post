@@ -8,10 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
-	"github.com/curious-kitten/scratch-post/internal/store"
 	metadatav1 "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
 	testplanv1 "github.com/curious-kitten/scratch-post/pkg/api/v1/testplan"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 //go:generate mockgen -source ./testplan.go -destination mocks/testplan.go
@@ -59,9 +57,6 @@ func New(meta MetaHandler, collection Adder, getProject projectRetriever) func(c
 			return nil, err
 		}
 		if _, err := getProject(ctx, testplan.ProjectId); err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("project with the provided ID does not exist")
-			}
 			return nil, err
 		}
 		identity, err := meta.NewMeta(author, "testplan")
@@ -121,9 +116,6 @@ func Update(meta MetaHandler, collection ReaderUpdater, getProject projectRetrie
 			return nil, err
 		}
 		if _, err := getProject(ctx, testplan.ProjectId); err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("project with the provided ID does not exist")
-			}
 			return nil, err
 		}
 		foundTestplan, err := Get(collection)(ctx, id)

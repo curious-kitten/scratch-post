@@ -13,19 +13,16 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/db"
 	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/health"
+	"github.com/curious-kitten/scratch-post/internal/http/endpoints"
+	"github.com/curious-kitten/scratch-post/internal/http/methods"
+	"github.com/curious-kitten/scratch-post/internal/http/router"
 	"github.com/curious-kitten/scratch-post/internal/info"
 	"github.com/curious-kitten/scratch-post/internal/keys"
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
 	"github.com/curious-kitten/scratch-post/pkg/administration/users"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
+	"github.com/curious-kitten/scratch-post/pkg/administration/users/auth"
 	"github.com/curious-kitten/scratch-post/pkg/executions"
-	"github.com/curious-kitten/scratch-post/pkg/http/auth"
-	"github.com/curious-kitten/scratch-post/pkg/http/endpoints"
-	"github.com/curious-kitten/scratch-post/pkg/http/methods"
-	"github.com/curious-kitten/scratch-post/pkg/http/middleware"
-	"github.com/curious-kitten/scratch-post/pkg/http/probes"
-	"github.com/curious-kitten/scratch-post/pkg/http/router"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
@@ -62,7 +59,7 @@ var Command = &cobra.Command{
 
 		log, flush, err := logger.New(app, instance, true)
 		if err != nil {
-			err = errors.Wrap("could not start logger", err)
+			err = fmt.Errorf("%s : %w", "could not start logger", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -74,7 +71,7 @@ var Command = &cobra.Command{
 		// Reading DB config file
 		testDBConfContents, err := os.Open(testDBConfigFile)
 		if err != nil {
-			err = errors.Wrap("could not read test DB config", err)
+			err = fmt.Errorf("%s : %w", "could not read test DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -82,35 +79,35 @@ var Command = &cobra.Command{
 		storeCfg := &store.Config{}
 		err = decoder.Decode(storeCfg, testDBConfContents)
 		if err != nil {
-			err = errors.Wrap("could not decode test DB config", err)
+			err = fmt.Errorf("%s : %w", "could not decode test DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 
 		adminDBConfContents, err := os.Open(adminDBConfigFile)
 		if err != nil {
-			err = errors.Wrap("could not read admin DB config", err)
+			err = fmt.Errorf("%s : %w", "could not read admin DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		adminDBCfg := &db.Config{}
 		err = decoder.Decode(adminDBCfg, adminDBConfContents)
 		if err != nil {
-			err = errors.Wrap("could not decode admin DB config", err)
+			err = fmt.Errorf("%s : %w", "could not decode admin DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		// Reading API config file
 		apiConfContents, err := os.Open(apiConfigFile)
 		if err != nil {
-			err = errors.Wrap("could not read api config", err)
+			err = fmt.Errorf("%s : %w", "could not read api config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		apiCfg := &endpoints.Config{}
 		err = decoder.Decode(apiCfg, apiConfContents)
 		if err != nil {
-			err = errors.Wrap("could not decode endpoints", err)
+			err = fmt.Errorf("%s : %w", "could not decode endpoints", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -120,13 +117,13 @@ var Command = &cobra.Command{
 		versionedRouter := r.PathPrefix(apiCfg.RootPrefix).Subrouter()
 
 		conditions := health.NewConditions(app, instance)
-		probes.RegisterHTTPProbes(versionedRouter.PathPrefix(apiCfg.Endpoints.Probes).Subrouter(), conditions)
+		health.RegisterHTTPProbes(versionedRouter.PathPrefix(apiCfg.Endpoints.Probes).Subrouter(), conditions)
 
 		meta := metadata.NewMetaManager()
 
 		sql, err := db.New(*adminDBCfg)
 		if err != nil {
-			err = errors.Wrap("DB connection error", err)
+			err = fmt.Errorf("%s : %w", "DB connection error", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -161,7 +158,7 @@ var Command = &cobra.Command{
 		if isJWT {
 			securityKey, err := os.Open(securityFile)
 			if err != nil {
-				err = errors.Wrap("could not open security file", err)
+				err = fmt.Errorf("%s : %w", "could not open security file", err)
 				log.Errorw("fatal error during startup", "error", err)
 				return err
 			}
@@ -174,7 +171,7 @@ var Command = &cobra.Command{
 
 		client, err := store.Client(ctx, storeCfg.Address)
 		if err != nil {
-			err = errors.Wrap("DB connection error", err)
+			err = fmt.Errorf("%s : %w", "DB connection error", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -199,7 +196,7 @@ var Command = &cobra.Command{
 
 		userDB, err := users.NewUserDB(sql)
 		if err != nil {
-			err = errors.Wrap("DB connection error", err)
+			err = fmt.Errorf("%s : %w", "DB connection error", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -212,68 +209,79 @@ var Command = &cobra.Command{
 
 		// User endpoints
 		usersRouter := administrationRouter.PathPrefix(apiCfg.Endpoints.Admin.Users).Subrouter()
-		usersRouter.Use(middleware.Authorization(authorizer))
-		methods.Post(ctx, users.Create(userDB), usersRouter, log)
+		usersRouter.Use(auth.Authorization(authorizer))
+		methods.Post(ctx, users.Create(userDB), auth.GetUserIDFromRequest, usersRouter, log)
 		methods.Get(ctx, users.Get(userDB), usersRouter, log)
 
 		//  Projects endpoint
 		projectsCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Projects, client, []string{"name"})
 		if err != nil {
-			err = errors.Wrap("could not start collection", err)
+			err = fmt.Errorf("%s : %w", "could not start collection", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		projectRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Projects).Subrouter()
-		projectRouter.Use(middleware.Authorization(authorizer))
-		methods.Post(ctx, projects.New(meta, projectsCollection), projectRouter, log)
+		projectRouter.Use(auth.Authorization(authorizer))
+		methods.Post(ctx, projects.New(meta, projectsCollection), auth.GetUserIDFromRequest, projectRouter, log)
 		methods.List(ctx, projects.List(projectsCollection), projectRouter, log)
 		methods.Get(ctx, projects.Get(projectsCollection), projectRouter, log)
 		methods.Delete(ctx, projects.Delete(projectsCollection), projectRouter, log)
-		methods.Put(ctx, projects.Update(meta, projectsCollection), projectRouter, log)
+		methods.Put(ctx, projects.Update(meta, projectsCollection), auth.GetUserIDFromRequest, projectRouter, log)
 
 		// Scenario endpoints
 		scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
 		if err != nil {
-			err = errors.Wrap("could not start collection", err)
+			err = fmt.Errorf("%s : %w", "could not start collection", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		scenarioRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Scenarios).Subrouter()
-		scenarioRouter.Use(middleware.Authorization(authorizer))
-		methods.Post(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
+		scenarioRouter.Use(auth.Authorization(authorizer))
+		methods.Post(ctx, scenarios.New(meta, scenarioCollection, projects.Get(projectsCollection)), auth.GetUserIDFromRequest, scenarioRouter, log)
 		methods.List(ctx, scenarios.List(scenarioCollection), scenarioRouter, log)
 		methods.Get(ctx, scenarios.Get(scenarioCollection), scenarioRouter, log)
 		methods.Delete(ctx, scenarios.Delete(scenarioCollection), scenarioRouter, log)
-		methods.Put(ctx, scenarios.Update(meta, scenarioCollection, projects.Get(projectsCollection)), scenarioRouter, log)
+		methods.Put(ctx, scenarios.Update(meta, scenarioCollection, projects.Get(projectsCollection)), auth.GetUserIDFromRequest, scenarioRouter, log)
 
 		// TestPlan endpoints
 		testPlanCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.TestPlans, client, []string{"projectId", "name"})
 		if err != nil {
-			err = errors.Wrap("could not start collection", err)
+			err = fmt.Errorf("%s : %w", "could not start collection", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		testPlanRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.TestPlans).Subrouter()
-		testPlanRouter.Use(middleware.Authorization(authorizer))
-		methods.Post(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
+		testPlanRouter.Use(auth.Authorization(authorizer))
+		methods.Post(ctx, testplans.New(meta, testPlanCollection, projects.Get(projectsCollection)), auth.GetUserIDFromRequest, testPlanRouter, log)
 		methods.List(ctx, testplans.List(testPlanCollection), testPlanRouter, log)
 		methods.Get(ctx, testplans.Get(testPlanCollection), testPlanRouter, log)
 		methods.Delete(ctx, testplans.Delete(testPlanCollection), testPlanRouter, log)
-		methods.Put(ctx, testplans.Update(meta, testPlanCollection, projects.Get(projectsCollection)), testPlanRouter, log)
+		methods.Put(ctx, testplans.Update(meta, testPlanCollection, projects.Get(projectsCollection)), auth.GetUserIDFromRequest, testPlanRouter, log)
 
 		// Executions endpoints
 		executionCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Executions, client, []string{})
 		if err != nil {
-			err = errors.Wrap("could not start collection", err)
+			err = fmt.Errorf("%s : %w", "could not start collection", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
-		executionRouter.Use(middleware.Authorization(authorizer))
-		methods.Post(ctx, executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
+		executionRouter.Use(auth.Authorization(authorizer))
+		methods.Post(
+			ctx,
+			executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)),
+			auth.GetUserIDFromRequest,
+			executionRouter,
+			log,
+		)
 		methods.List(ctx, executions.List(executionCollection), executionRouter, log)
 		methods.Get(ctx, executions.Get(executionCollection), executionRouter, log)
-		methods.Put(ctx, executions.Update(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)), executionRouter, log)
+		methods.Put(
+			ctx,
+			executions.Update(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)),
+			auth.GetUserIDFromRequest,
+			executionRouter,
+			log)
 
 		// Start HTTP Server
 		srv := &http.Server{
@@ -292,7 +300,7 @@ var Command = &cobra.Command{
 			defer cancel()
 			err = srv.Shutdown(ctx)
 			if err != nil {
-				err = errors.Wrap("shutdown issue", err)
+				err = fmt.Errorf("%s : %w", "shutdown issue", err)
 				log.Errorw("fatal error during startup", "error", err)
 			}
 		}()
