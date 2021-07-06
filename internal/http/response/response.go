@@ -11,7 +11,7 @@ type executionError struct {
 }
 
 // SendError returns an error message with the given status code
-func SendError(w http.ResponseWriter, message string, code int) error {
+func SendError(w http.ResponseWriter, message string, code int) {
 	execError := &executionError{
 		Error: message,
 		Code:  code,
@@ -19,22 +19,20 @@ func SendError(w http.ResponseWriter, message string, code int) error {
 
 	js, err := json.Marshal(execError)
 	if err != nil {
-		return err
+		SendError(w, err.Error(), 400)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	_, err = w.Write(js)
-	return err
+	_, _ = w.Write(js)
 }
 
 // Send writes a json body to the response writter
-func Send(w http.ResponseWriter, value interface{}, code int) error{
+func Send(w http.ResponseWriter, value interface{}, code int) {
 	js, err := json.Marshal(value)
 	if err != nil {
-		return err
+		SendError(w, err.Error(), 400)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	_, err = w.Write(js)
-	return err
+	_, _ = w.Write(js)
 }

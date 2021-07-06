@@ -122,14 +122,12 @@ func Update(meta MetaHandler, collection ReaderUpdater, getProject getItem, getS
 			return nil, err
 		}
 		if _, err := getProject(ctx, execution.ProjectId); err != nil {
-
 			return nil, err
 		}
 		if _, err := getScenario(ctx, execution.ScenarioId); err != nil {
 			return nil, err
 		}
 		if _, err := getTestPlan(ctx, execution.TestPlanId); err != nil {
-
 			return nil, err
 		}
 		rawExecution, err := Get(collection)(ctx, id)

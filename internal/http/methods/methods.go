@@ -21,7 +21,7 @@ type list func(ctx context.Context, filter map[string][]string, sortBy string, r
 type get func(ctx context.Context, id string) (interface{}, error)
 type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
 type deleteItem func(ctx context.Context, id string) error
-type extractUserName func(r *http.Request) (string, error) 
+type extractUserName func(r *http.Request) (string, error)
 
 // Post reponds to a HTTP Post request to a collection
 func Post(ctx context.Context, createFunc create, getUser extractUserName, r *mux.Router, log logger.Logger) {

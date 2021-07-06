@@ -9,11 +9,11 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
 
+	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/test/matchers"
 	"github.com/curious-kitten/scratch-post/internal/test/transformers"
 	metadata "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
 	project "github.com/curious-kitten/scratch-post/pkg/api/v1/project"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	mockProjects "github.com/curious-kitten/scratch-post/pkg/projects/mocks"
 )
@@ -43,7 +43,7 @@ func TestScenario_Validate(t *testing.T) {
 	p := &project.Project{}
 	err := p.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with empty scenario")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "empty scenario error is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "empty scenario error is not a validation error")
 	p.Name = "Test Name"
 	err = p.Validate()
 	g.Expect(err).ShouldNot(HaveOccurred(), "error occurred when minimun requirements have been met")
@@ -85,7 +85,7 @@ func TestNew_MarshallError(t *testing.T) {
 	creator := projects.New(mockGenerator, mockAdder)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(struct{ SomeField string }{SomeField: "test"}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestNew_ValidationError(t *testing.T) {
@@ -98,7 +98,7 @@ func TestNew_ValidationError(t *testing.T) {
 	creator := projects.New(mockGenerator, mockAdder)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(&project.Project{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestNew_AddMetaError(t *testing.T) {
@@ -268,7 +268,7 @@ func TestUpdate_ValidationError(t *testing.T) {
 	updater := projects.Update(mockMetaHandler, mockReaderUpdater)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(project.Project{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestUpdate_GetError(t *testing.T) {

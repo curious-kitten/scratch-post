@@ -13,16 +13,16 @@ import (
 	"github.com/curious-kitten/scratch-post/internal/db"
 	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/health"
+	"github.com/curious-kitten/scratch-post/internal/http/endpoints"
+	"github.com/curious-kitten/scratch-post/internal/http/methods"
+	"github.com/curious-kitten/scratch-post/internal/http/router"
 	"github.com/curious-kitten/scratch-post/internal/info"
 	"github.com/curious-kitten/scratch-post/internal/keys"
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
 	"github.com/curious-kitten/scratch-post/pkg/administration/users"
-	"github.com/curious-kitten/scratch-post/pkg/executions"
 	"github.com/curious-kitten/scratch-post/pkg/administration/users/auth"
-	"github.com/curious-kitten/scratch-post/internal/http/endpoints"
-	"github.com/curious-kitten/scratch-post/internal/http/methods"
-	"github.com/curious-kitten/scratch-post/internal/http/router"
+	"github.com/curious-kitten/scratch-post/pkg/executions"
 	"github.com/curious-kitten/scratch-post/pkg/metadata"
 	"github.com/curious-kitten/scratch-post/pkg/projects"
 	"github.com/curious-kitten/scratch-post/pkg/scenarios"
@@ -153,7 +153,6 @@ var Command = &cobra.Command{
 			}
 
 		})
-		
 
 		var authorizer auth.Authorizer
 		if isJWT {
@@ -195,11 +194,9 @@ var Command = &cobra.Command{
 			}
 		})
 
-
-
 		userDB, err := users.NewUserDB(sql)
 		if err != nil {
-			err =fmt.Errorf("%s : %w", "DB connection error", err)
+			err = fmt.Errorf("%s : %w", "DB connection error", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -234,7 +231,7 @@ var Command = &cobra.Command{
 		// Scenario endpoints
 		scenarioCollection, err := store.Collection(storeCfg.DataBase, storeCfg.Collections.Scenarios, client, []string{"projectId", "name"})
 		if err != nil {
-			err = fmt.Errorf("%s : %w","could not start collection", err)
+			err = fmt.Errorf("%s : %w", "could not start collection", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
@@ -271,19 +268,19 @@ var Command = &cobra.Command{
 		executionRouter := versionedRouter.PathPrefix(apiCfg.Endpoints.Executions).Subrouter()
 		executionRouter.Use(auth.Authorization(authorizer))
 		methods.Post(
-			ctx, 
+			ctx,
 			executions.New(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)),
 			auth.GetUserIDFromRequest,
-			executionRouter, 
+			executionRouter,
 			log,
 		)
 		methods.List(ctx, executions.List(executionCollection), executionRouter, log)
 		methods.Get(ctx, executions.Get(executionCollection), executionRouter, log)
 		methods.Put(
-			ctx, 
+			ctx,
 			executions.Update(meta, executionCollection, projects.Get(projectsCollection), scenarios.Get(scenarioCollection), testplans.Get(testPlanCollection)),
 			auth.GetUserIDFromRequest,
-			executionRouter, 
+			executionRouter,
 			log)
 
 		// Start HTTP Server

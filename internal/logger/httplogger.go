@@ -3,7 +3,6 @@ package logger
 import (
 	"net/http"
 	"runtime/debug"
-
 )
 
 type responseWriter struct {
@@ -30,9 +29,8 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.wroteHeader = true
 }
 
-
-// HttpLogging wraprs a handler to perform logging when requests are made
-func HttpLogging(logger Logger) func(http.Handler) http.Handler {
+// HTTPLogging wraprs a handler to perform logging when requests are made
+func HTTPLogging(logger Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
@@ -61,4 +59,3 @@ func HttpLogging(logger Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(fn)
 	}
 }
-

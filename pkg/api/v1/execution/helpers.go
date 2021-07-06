@@ -1,8 +1,8 @@
 package execution
 
 import (
-	scenariov1 "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario"
 	"github.com/curious-kitten/scratch-post/internal/decoder"
+	scenariov1 "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario"
 )
 
 // Validate is used to check the integrity of the execution object

@@ -10,12 +10,12 @@ import (
 	. "github.com/onsi/gomega"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"github.com/curious-kitten/scratch-post/internal/decoder"
 	"github.com/curious-kitten/scratch-post/internal/test/matchers"
 	"github.com/curious-kitten/scratch-post/internal/test/transformers"
 	execution "github.com/curious-kitten/scratch-post/pkg/api/v1/execution"
 	metadata "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
 	scenario "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
 	"github.com/curious-kitten/scratch-post/pkg/executions"
 	mockExecutions "github.com/curious-kitten/scratch-post/pkg/executions/mocks"
 )
@@ -92,7 +92,7 @@ func TestExecution_Validate(t *testing.T) {
 	s := &execution.Execution{}
 	err := s.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with empty execution")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "empty execution error is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "empty execution error is not a validation error")
 
 	s = &execution.Execution{
 		ProjectId:  "zzxxxccvv",
@@ -100,7 +100,7 @@ func TestExecution_Validate(t *testing.T) {
 	}
 	err = s.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with execution that does not have a project ID")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "execution without a scenario ID is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "execution without a scenario ID is not a validation error")
 
 	s = &execution.Execution{
 		TestPlanId: "zzxxxccvv",
@@ -108,7 +108,7 @@ func TestExecution_Validate(t *testing.T) {
 	}
 	err = s.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with execution that does not have a project ID")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "execution without a test plan ID is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "execution without a test plan ID is not a validation error")
 
 	s = &execution.Execution{
 		TestPlanId: "zzxxxccvv",
@@ -116,7 +116,7 @@ func TestExecution_Validate(t *testing.T) {
 	}
 	err = s.Validate()
 	g.Expect(err).Should(HaveOccurred(), "No error with execution that does not have a scenario ID")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "execution without a test plan ID is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "execution without a test plan ID is not a validation error")
 
 	err = testExecution.Validate()
 	g.Expect(err).ShouldNot(HaveOccurred(), "error occurred when minimun requirements have been met")
@@ -162,7 +162,6 @@ func TestNew_ProjectNotFound(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, noItem, goodGetItem, goodGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
 }
 
 func TestNew_ExecutorNotFound(t *testing.T) {
@@ -175,7 +174,6 @@ func TestNew_ExecutorNotFound(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, goodGetItem, goodGetItem, noItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "executor not found error is not a validation error")
 }
 
 func TestNew_ScenarioNotFound(t *testing.T) {
@@ -188,7 +186,6 @@ func TestNew_ScenarioNotFound(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, goodGetItem, noItem, goodGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "scenario not found error is not a validation error")
 }
 
 func TestNew_ProjectError(t *testing.T) {
@@ -201,7 +198,7 @@ func TestNew_ProjectError(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, errorGetItem, goodGetItem, goodGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeFalse(), "error type was missing")
+	g.Expect(decoder.IsValidationError(err)).To(BeFalse(), "error type was missing")
 }
 
 func TestNew_ExecutorError(t *testing.T) {
@@ -214,7 +211,7 @@ func TestNew_ExecutorError(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, goodGetItem, goodGetItem, errorGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeFalse(), "error type was missing")
+	g.Expect(decoder.IsValidationError(err)).To(BeFalse(), "error type was missing")
 }
 
 func TestNew_ScenarioError(t *testing.T) {
@@ -227,7 +224,7 @@ func TestNew_ScenarioError(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, goodGetItem, errorGetItem, goodGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeFalse(), "error type was missing")
+	g.Expect(decoder.IsValidationError(err)).To(BeFalse(), "error type was missing")
 }
 
 func TestNew_MarshallError(t *testing.T) {
@@ -240,7 +237,7 @@ func TestNew_MarshallError(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, errorGetItem, goodGetItem, goodGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(struct{ SomeField string }{SomeField: "test"}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestNew_ValidationError(t *testing.T) {
@@ -253,7 +250,7 @@ func TestNew_ValidationError(t *testing.T) {
 	creator := executions.New(mockMetaHandler, mockAdder, goodGetItem, goodGetItem, goodGetItem)
 	_, err := creator(ctx, "tester", transformers.ToReadCloser(&execution.Execution{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestNew_AddMetaError(t *testing.T) {
@@ -389,7 +386,7 @@ func TestUpdate_ValidationError(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, goodGetItem, goodGetItem, goodGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(execution.Execution{}))
 	g.Expect(err).Should(HaveOccurred(), "error did not occur")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeTrue(), "invalid item passed does not return a validation error")
 }
 
 func TestUpdate_InvalidProject(t *testing.T) {
@@ -402,7 +399,6 @@ func TestUpdate_InvalidProject(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, noItem, goodGetItem, goodGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
 }
 
 func TestUpdate_InvalidScenario(t *testing.T) {
@@ -415,7 +411,6 @@ func TestUpdate_InvalidScenario(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, goodGetItem, noItem, goodGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
 }
 
 func TestUpdate_InvalidTestPlan(t *testing.T) {
@@ -428,7 +423,6 @@ func TestUpdate_InvalidTestPlan(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, goodGetItem, noItem, goodGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
-	g.Expect(errors.IsValidationError(err)).To(BeTrue(), "project not found error is not a validation error")
 }
 
 func TestUpdate_ProjectError(t *testing.T) {
@@ -441,7 +435,7 @@ func TestUpdate_ProjectError(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, errorGetItem, goodGetItem, goodGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
-	g.Expect(errors.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
 }
 
 func TestUpdate_ScenarioError(t *testing.T) {
@@ -454,7 +448,7 @@ func TestUpdate_ScenarioError(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, goodGetItem, errorGetItem, goodGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
-	g.Expect(errors.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
 }
 
 func TestUpdate_TestPlanError(t *testing.T) {
@@ -467,7 +461,7 @@ func TestUpdate_TestPlanError(t *testing.T) {
 	updater := executions.Update(mockMetaHandler, mockReaderUpdater, goodGetItem, goodGetItem, errorGetItem)
 	_, err := updater(ctx, "tester", identity.Id, transformers.ToReadCloser(testExecution))
 	g.Expect(err).Should(HaveOccurred(), "unexpected error occurred")
-	g.Expect(errors.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
+	g.Expect(decoder.IsValidationError(err)).To(BeFalse(), "project not found error is not a validation error")
 }
 
 func TestUpdate_GetError(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
 )
 
 // Validatable represents an item that has constraints on what a correct structure is an imposes these constraints through the Validate method

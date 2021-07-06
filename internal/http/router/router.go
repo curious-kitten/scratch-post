@@ -5,8 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/http/response"
+	"github.com/curious-kitten/scratch-post/internal/logger"
 )
 
 // New creates a new mux router
@@ -14,7 +14,7 @@ func New(log logger.Logger) *mux.Router {
 	r := mux.NewRouter()
 	r.MethodNotAllowedHandler = methodNotAllowedHandler()
 	r.NotFoundHandler = notFoundHandler()
-	r.Use(logger.HttpLogging(log))
+	r.Use(logger.HTTPLogging(log))
 	return r
 }
 
