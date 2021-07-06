@@ -8,11 +8,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/curious-kitten/scratch-post/internal/decoder"
-	"github.com/curious-kitten/scratch-post/internal/store"
 	executionv1 "github.com/curious-kitten/scratch-post/pkg/api/v1/execution"
 	metadatav1 "github.com/curious-kitten/scratch-post/pkg/api/v1/metadata"
 	scenariov1 "github.com/curious-kitten/scratch-post/pkg/api/v1/scenario"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
 )
 
 //go:generate mockgen -source ./executions.go -destination mocks/executions.go
@@ -55,23 +53,14 @@ func New(meta MetaHandler, collection Adder, getProject getItem, getScenario get
 			return nil, err
 		}
 		if _, err := getProject(ctx, execution.ProjectId); err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("project with the provided ID does not exist")
-			}
 			return nil, err
 		}
 		_, err := getTestPlan(ctx, execution.TestPlanId)
 		if err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
-			}
 			return nil, err
 		}
 		raw, err := getScenario(ctx, execution.ScenarioId)
 		if err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("scenario with the provided ID does not exist")
-			}
 			return nil, err
 		}
 
@@ -133,21 +122,14 @@ func Update(meta MetaHandler, collection ReaderUpdater, getProject getItem, getS
 			return nil, err
 		}
 		if _, err := getProject(ctx, execution.ProjectId); err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("project with the provided ID does not exist")
-			}
+
 			return nil, err
 		}
 		if _, err := getScenario(ctx, execution.ScenarioId); err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
-			}
 			return nil, err
 		}
 		if _, err := getTestPlan(ctx, execution.TestPlanId); err != nil {
-			if store.IsNotFoundError(err) {
-				return nil, errors.NewValidationError("test plan with the provided ID does not exist")
-			}
+
 			return nil, err
 		}
 		rawExecution, err := Get(collection)(ctx, id)
@@ -176,7 +158,7 @@ func Update(meta MetaHandler, collection ReaderUpdater, getProject getItem, getS
 				}
 			}
 			if !found {
-				return nil, errors.NewValidationError(fmt.Sprintf("step '%s' is not part of the current scenario", v.Definition.Name))
+				return nil, decoder.NewValidationError(fmt.Sprintf("step '%s' is not part of the current scenario", v.Definition.Name))
 			}
 		}
 

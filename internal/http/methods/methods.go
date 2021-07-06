@@ -10,11 +10,10 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/curious-kitten/scratch-post/internal/decoder"
+	"github.com/curious-kitten/scratch-post/internal/http/response"
 	"github.com/curious-kitten/scratch-post/internal/logger"
 	"github.com/curious-kitten/scratch-post/internal/store"
-	"github.com/curious-kitten/scratch-post/pkg/errors"
-	"github.com/curious-kitten/scratch-post/pkg/http/auth"
-	"github.com/curious-kitten/scratch-post/pkg/http/helpers"
 )
 
 type create func(ctx context.Context, author string, body io.Reader) (interface{}, error)
@@ -22,13 +21,14 @@ type list func(ctx context.Context, filter map[string][]string, sortBy string, r
 type get func(ctx context.Context, id string) (interface{}, error)
 type updateItem func(ctx context.Context, author string, id string, body io.Reader) (interface{}, error)
 type deleteItem func(ctx context.Context, id string) error
+type extractUserName func(r *http.Request) (string, error) 
 
 // Post reponds to a HTTP Post request to a collection
-func Post(ctx context.Context, createFunc create, r *mux.Router, log logger.Logger) {
+func Post(ctx context.Context, createFunc create, getUser extractUserName, r *mux.Router, log logger.Logger) {
 	c := func(w http.ResponseWriter, r *http.Request) {
-		user, err := auth.GetUserIDFromRequest(r)
+		user, err := getUser(r)
 		if err != nil {
-			helpers.FormatError(w, err.Error(), http.StatusBadRequest)
+			response.SendError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		toctx, cancel := context.WithTimeout(ctx, time.Second*10)
@@ -39,7 +39,7 @@ func Post(ctx context.Context, createFunc create, r *mux.Router, log logger.Logg
 			handleError(err, w)
 			return
 		}
-		helpers.FormatResponse(w, item, http.StatusCreated)
+		response.Send(w, item, http.StatusCreated)
 	}
 	route := r.HandleFunc("", c).Methods(http.MethodPost)
 	path, _ := route.GetPathTemplate()
@@ -80,14 +80,14 @@ func List(ctx context.Context, listFunc list, r *mux.Router, log logger.Logger) 
 		}
 		items, err := listFunc(toctx, queries, sortBy, reverse, count, lastFoundValue)
 		if err != nil {
-			helpers.FormatError(w, err.Error(), http.StatusInternalServerError)
+			response.SendError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		itemList := &ItemList{
 			Count: len(items),
 			Items: items,
 		}
-		helpers.FormatResponse(w, itemList, http.StatusOK)
+		response.Send(w, itemList, http.StatusOK)
 	}
 	route := r.HandleFunc("", l).Methods(http.MethodGet)
 	path, _ := route.GetPathTemplate()
@@ -112,7 +112,7 @@ func Get(ctx context.Context, getterFunc get, r *mux.Router, log logger.Logger) 
 			handleError(err, w)
 			return
 		}
-		helpers.FormatResponse(w, item, http.StatusOK)
+		response.Send(w, item, http.StatusOK)
 	}
 	route := r.HandleFunc("/{id}", i).Methods(http.MethodGet)
 	path, _ := route.GetPathTemplate()
@@ -130,7 +130,7 @@ func Delete(ctx context.Context, deleterFunc deleteItem, r *mux.Router, log logg
 			handleError(err, w)
 			return
 		}
-		helpers.FormatResponse(w, struct {
+		response.Send(w, struct {
 			Item string `json:"item"`
 		}{Item: id}, http.StatusOK)
 	}
@@ -140,13 +140,13 @@ func Delete(ctx context.Context, deleterFunc deleteItem, r *mux.Router, log logg
 }
 
 // Put provides an API endpoint used to update an intem
-func Put(ctx context.Context, updateFunc updateItem, r *mux.Router, log logger.Logger) {
+func Put(ctx context.Context, updateFunc updateItem, getUser extractUserName, r *mux.Router, log logger.Logger) {
 	u := func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		id := params["id"]
-		user, err := auth.GetUserIDFromRequest(r)
+		user, err := getUser(r)
 		if err != nil {
-			helpers.FormatError(w, err.Error(), http.StatusBadRequest)
+			response.SendError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		toctx, cancel := context.WithTimeout(ctx, time.Second*10)
@@ -156,7 +156,7 @@ func Put(ctx context.Context, updateFunc updateItem, r *mux.Router, log logger.L
 			handleError(err, w)
 			return
 		}
-		helpers.FormatResponse(w, item, http.StatusOK)
+		response.Send(w, item, http.StatusOK)
 	}
 	route := r.HandleFunc("/{id}", u).Methods(http.MethodPut)
 	path, _ := route.GetPathTemplate()
@@ -166,12 +166,12 @@ func Put(ctx context.Context, updateFunc updateItem, r *mux.Router, log logger.L
 func handleError(err error, w http.ResponseWriter) {
 	switch {
 	case store.IsNotFoundError(err):
-		helpers.FormatError(w, "could not find requested item", http.StatusNotFound)
-	case errors.IsValidationError(err):
-		helpers.FormatError(w, err.Error(), http.StatusBadRequest)
+		response.SendError(w, "could not find requested item", http.StatusNotFound)
+	case decoder.IsValidationError(err):
+		response.SendError(w, err.Error(), http.StatusBadRequest)
 	case store.IsDuplicateError(err):
-		helpers.FormatError(w, "item already exists", http.StatusBadRequest)
+		response.SendError(w, "item already exists", http.StatusBadRequest)
 	default:
-		helpers.FormatError(w, err.Error(), http.StatusInternalServerError)
+		response.SendError(w, err.Error(), http.StatusInternalServerError)
 	}
 }
