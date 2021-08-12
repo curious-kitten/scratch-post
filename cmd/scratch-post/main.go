@@ -18,8 +18,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/curious-kitten/scratch-post/pkg/commands/generate"
-	"github.com/curious-kitten/scratch-post/pkg/commands/start"
+	"github.com/curious-kitten/scratch-post/internal/commands/generate"
+	"github.com/curious-kitten/scratch-post/internal/commands/start"
 )
 
 func init() {

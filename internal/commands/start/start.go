@@ -29,16 +29,16 @@ import (
 	"github.com/curious-kitten/scratch-post/pkg/testplans"
 )
 
-var testDBConfigFile string
-var adminDBConfigFile string
-var apiConfigFile string
+var storeCfgFile string
+var adminDBCfgFile string
+var apiCfgFile string
 var securityFile string
 var isJWT bool
 
 func init() {
-	Command.Flags().StringVar(&testDBConfigFile, "testdb", "testdb.json", "Path to DB config settings")
-	Command.Flags().StringVar(&adminDBConfigFile, "admindb", "admindb.json", "Path to admin DB config settings")
-	Command.Flags().StringVar(&apiConfigFile, "apiconfig", "apiconfig.json", "Path to API config settings")
+	Command.Flags().StringVar(&storeCfgFile, "testdb", "testdb.json", "Path to DB config settings")
+	Command.Flags().StringVar(&adminDBCfgFile, "admindb", "admindb.json", "Path to admin DB config settings")
+	Command.Flags().StringVar(&apiCfgFile, "apiconfig", "apiconfig.json", "Path to API config settings")
 	Command.Flags().StringVar(&securityFile, "scenarios", "scenarios", "collection name to be used for scenarios")
 	Command.Flags().BoolVar(&isJWT, "isJWT", false, "Sets the authentication type to JWT. Default is session ID")
 	Command.Flags().StringVar(&securityFile, "securityFile", "security.txt", "Path to file which contains the JWT security string")
@@ -69,7 +69,7 @@ var Command = &cobra.Command{
 
 		log.Info("Reading configurations...")
 		// Reading DB config file
-		testDBConfContents, err := os.Open(testDBConfigFile)
+		storeCfgFileContents, err := os.Open(storeCfgFile)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "could not read test DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
@@ -77,35 +77,35 @@ var Command = &cobra.Command{
 		}
 
 		storeCfg := &store.Config{}
-		err = decoder.Decode(storeCfg, testDBConfContents)
+		err = decoder.Decode(storeCfg, storeCfgFileContents)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "could not decode test DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 
-		adminDBConfContents, err := os.Open(adminDBConfigFile)
+		adminDBCfgFileContents, err := os.Open(adminDBCfgFile)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "could not read admin DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		adminDBCfg := &db.Config{}
-		err = decoder.Decode(adminDBCfg, adminDBConfContents)
+		err = decoder.Decode(adminDBCfg, adminDBCfgFileContents)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "could not decode admin DB config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		// Reading API config file
-		apiConfContents, err := os.Open(apiConfigFile)
+		apiCfgContents, err := os.Open(apiCfgFile)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "could not read api config", err)
 			log.Errorw("fatal error during startup", "error", err)
 			return err
 		}
 		apiCfg := &endpoints.Config{}
-		err = decoder.Decode(apiCfg, apiConfContents)
+		err = decoder.Decode(apiCfg, apiCfgContents)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "could not decode endpoints", err)
 			log.Errorw("fatal error during startup", "error", err)
@@ -154,21 +154,6 @@ var Command = &cobra.Command{
 
 		})
 
-		var authorizer auth.Authorizer
-		if isJWT {
-			securityKey, err := os.Open(securityFile)
-			if err != nil {
-				err = fmt.Errorf("%s : %w", "could not open security file", err)
-				log.Errorw("fatal error during startup", "error", err)
-				return err
-			}
-			keyRetriever := &keys.Retriever{Item: securityKey}
-			authorizer = auth.NewJWTHandler(keyRetriever)
-		} else {
-			authorizer = auth.NewSessionHandler(sql, log)
-		}
-		authorizer.Cleanup(24 * time.Hour)
-
 		client, err := store.Client(ctx, storeCfg.Address)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "DB connection error", err)
@@ -194,6 +179,22 @@ var Command = &cobra.Command{
 			}
 		})
 
+		// Start authorizer as session based or JWT based depending on configuration
+		var authorizer auth.Authorizer
+		if isJWT {
+			securityKey, err := os.Open(securityFile)
+			if err != nil {
+				err = fmt.Errorf("%s : %w", "could not open security file", err)
+				log.Errorw("fatal error during startup", "error", err)
+				return err
+			}
+			keyRetriever := &keys.Retriever{Item: securityKey}
+			authorizer = auth.NewJWTHandler(keyRetriever)
+		} else {
+			authorizer = auth.NewSessionHandler(sql, log)
+		}
+		authorizer.Cleanup(24 * time.Hour)
+
 		userDB, err := users.NewUserDB(sql)
 		if err != nil {
 			err = fmt.Errorf("%s : %w", "DB connection error", err)
@@ -201,6 +202,7 @@ var Command = &cobra.Command{
 			return err
 		}
 
+		// Login endpoints
 		authEndpoints := auth.NewEndpoints(ctx, users.IsPasswordCorrect(userDB), authorizer)
 		authEndpoints.Register(versionedRouter)
 
