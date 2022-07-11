@@ -3,7 +3,7 @@ package auth
 import (
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 const (
@@ -24,7 +24,7 @@ func (j *JWT) Cleanup(cleanInterval time.Duration) {
 // Claim uses the standard JWT Claim to create a custom claim
 type Claim struct {
 	Username string `json:"username"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // Keys is the interface that needs to be implemented to retrieve the key needed to sign a token
@@ -51,8 +51,8 @@ func (j *JWT) GenerateSecurityString(username string) (string, time.Time, error)
 	expirationTime := time.Now().Add(5 * time.Minute)
 	claims := &Claim{
 		Username: username,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
