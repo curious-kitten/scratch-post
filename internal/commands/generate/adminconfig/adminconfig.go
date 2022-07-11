@@ -46,7 +46,7 @@ var Command = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(file, cfg, 0644); err != nil {
+		if err := ioutil.WriteFile(file, cfg, 0600); err != nil {
 			return err
 		}
 		return nil
